@@ -39,6 +39,8 @@ export function considerFocus() {
     startCamera(pos, target);
   } else if (!nearest && S.focus && min === 2.0) restoreCamera();
 }
+// Length of every camera transition: focus on a connector, return with Esc, view display.
+export const CAMERA_TRANSITION_MS = 1000;
 export function startCamera(position, target) {
   S.cameraMotion = {
     from: camera.position.clone(),
@@ -46,7 +48,7 @@ export function startCamera(position, target) {
     startTarget: controls.target.clone(),
     target,
     start: performance.now(),
-    duration: 420,
+    duration: CAMERA_TRANSITION_MS,
   };
 }
 export function restoreCamera() {

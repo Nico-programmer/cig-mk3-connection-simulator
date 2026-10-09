@@ -25,7 +25,7 @@ export function animate(ms) {
   if (S.cameraMotion) {
     const motion = S.cameraMotion,
       t = Math.min(1, (ms - motion.start) / motion.duration),
-      s = t * t * (3 - 2 * t);
+      s = t * t * t * (t * (t * 6 - 15) + 10); // smootherstep: gentle start and stop
     camera.position.lerpVectors(motion.from, motion.to, s);
     controls.target.lerpVectors(motion.startTarget, motion.target, s);
     camera.lookAt(controls.target);

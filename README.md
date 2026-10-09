@@ -145,3 +145,8 @@ In 1.15 the orbit controls keep the desired position. The camera goes exactly th
 A part dragged toward the view still stops before entering the camera sphere, so the camera never jumps behind the part being held.
 
 Tests: `tests/camera.test.mjs` sweeps the orbit through about 15,000 frames around the bench and every connector, with no frame inside a solid and no frame where the camera sticks. It also checks that the opening view and the zoom distance are exact, and that a target inside a solid works without a teleport. Run against 1.14 as a control, the camera stuck on 7,358 frames. The existing camera assertions in `interaction.test.mjs` pass unchanged.
+
+## 1.15.1: smoother camera transitions
+Every camera transition takes 1 s instead of 0.42 s: focusing a connector, returning with Esc, View display, and automatic focus when a connector approaches its mate. The transitions now use smootherstep easing, which starts and stops more gently. The duration is `CAMERA_TRANSITION_MS` in `app/view.js`; the easing is in `app/loop.js`.
+
+From now on, adjustments within a version are numbered 1.x.y.

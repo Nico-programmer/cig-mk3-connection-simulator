@@ -30,7 +30,7 @@ Bypass connects the vehicle-side pair after detaching it from the Relay-1 pair. 
 
 ## Implementation
 
-- `dist/app.js`: scene, hardware models, pointer interactions, swept movement, OBB collision, near-camera sphere collision, mating, removal/replacement, UI, meter, scenarios and optional WebMCP registration.
+- `dist/app.js`: entry point only. Since 1.1 the application code lives in `dist/app/` (one responsibility per module, shared mutable state in `dist/app/state.js`). See `dist/app/README.md` for the module map and the rules for changing it.
 - `dist/geometry.js`: hardware meshes, pin locations and collision volumes.
 - `dist/electrical.js`: documented pin maps and connected-conductor graph. Faults remove or reroute actual graph edges. Replacing an unrelated component leaves the fault intact.
 - `dist/vendor/`: Three.js 0.186.1, OrbitControls and OBB under the included MIT license.
@@ -99,3 +99,21 @@ Continuity has a compact deterministic example selector: the existing lower-harn
 The unsecured-joint lesson interrupts CAN at the joint bridge only, preserving voltage and individual conductor continuity. Securing the joint after physical disconnect/reconnect restores communication. The poor-terminal lesson attaches a binary open-contact flag to the actual upper 4-pin port; it removes only that pin's mating bridge. No invented resistance threshold, intermittent probability or short circuit is modeled. Reseating does not clear it; physically replacing the upper harness restores the graph. The removed harness keeps its defective contact. Measurement highlights follow the currently installed replacement.
 
 These are learning-only cases explicitly requested by the user; no random evaluator or instructor setup is added. Existing F1–F12 circuit semantics and the prior lower-harness example are retained. Tests verify both segment passes/end-to-end failure, continued 12 V supply/normal EM LED, different reseating outcomes, physical harness replacement, replacement pin highlighting and repeat/reset behavior. WebGL rendering remains unverified.
+
+
+## Version naming
+From now on versions are numbered 1.x: 1.0 is the original v16; each 1.x is one step of the collision and cable repair.
+
+## 1.1: restructuring only (step 1 of the collision/cable rebuild)
+`dist/app.js` was split mechanically into 26 modules under `dist/app/` (largest about 290 lines, previously one 2,170-line file once formatted). No statement changed behaviour: top-level variables reassigned by more than one module became fields of the shared state object `S`. `electrical.js`, `learning.js`, `geometry.js`, `collision.js`, `drag-performance.js`, styles and vendor files are byte-identical to v16.
+
+Equivalence was checked three ways: the four existing suites pass; a 121-step scripted run (all eight lessons step by step, assembly, connection, rotation, probes, voltage/continuity, camera, hitboxes, language, keyboard) yields identical state, scene and interface snapshots (about 300,000 lines) to 1.0 (v16); and Chromium renders of three screens match 1.0 pixel for pixel. The interaction suites now load the app through `tests/support/load-app.mjs`, which accepts both layouts; their assertions are unchanged.
+
+The pre-existing rotation bug (`rotateSelected` refers to an undefined `context`) is intentionally preserved and is addressed by the collision rebuild.
+
+## 1.13: probe lag removed (step 2)
+`app/probes.js` only. Finding the pin nearest a probe (done every frame during lessons and on every probe drag move) no longer runs the approach-direction search for each pin: with the default clearance the direction is multiplied by zero, so `probeTargetPosition()` returns exactly the same position without it. `probePose()` also skips solids that are geometrically out of reach of every tested segment.
+
+Measured with the real modules (CPU, mocked renderer), continuity lesson with the chain assembled: frame 83 ms → 2.5 ms; probe drag move 253 ms → 12 ms; probe connection 400 ms → 10 ms. In Chromium, long main-thread tasks during the lesson went from 6 in 4 s (worst 123 ms) to none. The full test run dropped from about 70 s to 35 s.
+
+Behaviour is unchanged. `tests/probe-pose.test.mjs` compares the new code with the 1.0 algorithm for 1,344 pin/clearance cases and 560 probe-tip positions, requiring exact equality. The 121-step scripted run remains identical to 1.0.

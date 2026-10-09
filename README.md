@@ -80,3 +80,10 @@ The current lesson step has explicit documented pin targets in `pinTargets`. Non
 Each probe displays a floating number/signal label when approaching a valid pin or while connected. It uses the same nearest-pin selection as Connect probe, including during dragging. Returning to the lesson menu clears instructional markers.
 
 Checks traverse every step of all eight lessons without performing physical actions, exercise Previous/Next/Repeat, and check pin target changes, marker movement, actual proximity identification, correspondence with the connection target and menu cleanup. Existing physical/electrical workflows still pass; these are computational tests without WebGL rendering.
+
+## v9 live voltage display
+Voltage is recomputed directly from the two probe tools' authoritative contacts and the current conductor graph on every display refresh and periodic scene update. Recalculation is no longer gated by whether a previous display value exists. Missing probes clear the reading; key, disconnected joints and interrupted conductors update it without requiring probe removal. Contact polarity remains meaningful.
+
+The healthy connected EM receptacle pins 7/8 return +12.0 V in computational checks. The reported 0 V on a healthy system was not reproduced with those exact contacts. The lesson's distinct zero-supply example (step 4/5) still deliberately interrupts EM supply; a compact label now distinguishes that example from the healthy supply demonstration. No artificial 12 V override or fixed voltage output was introduced.
+
+New application tests exercise exact EM contacts, OFF/ON, reversed probes, disconnect/reconnect of the supply chain with probes left in place, conductor interruption/restoration, missing-probe clearing and both prepared voltage examples, using display refresh and animation handlers. Browser rendering remains unverified.

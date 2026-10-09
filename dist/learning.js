@@ -1,0 +1,65 @@
+// Scenario-independent teaching. This module receives neither a fault nor a diagnosis.
+const step=(id,esTitle,enTitle,es,en)=>({id,title:{es:esTitle,en:enTitle},body:{es,en}});
+export const lessons=[
+step('chain','Reconoce la cadena','Identify the chain',
+'La cadena es MK3 → arnés superior → unión media de 4 pines → arnés inferior → Expansion Module. Rojo: Key Switched Positive; negro: Ground / Negative; café: CAN LO; naranja: CAN HI. El EM recibe alimentación por el arnés, sin cable propio. El puerto trasero rotulado cámara no participa en esta conexión.',
+'The chain is MK3 → upper harness → middle 4-pin joint → lower harness → Expansion Module. Red: Key Switched Positive; black: Ground / Negative; brown: CAN LO; orange: CAN HI. The EM receives power through the harness, with no separate power cable. The rear camera port is outside this connection.'),
+step('screen','1 · Une el arnés superior al MK3','1 · Connect the upper harness to MK3',
+'Con la llave OFF, selecciona el conector naranja de 12 pines. Arrástralo cerca del receptáculo principal trasero del MK3, no del puerto cámara. La ranura central define la orientación; usa las flechas X/Y/Z. Pulsa Conectar cuando aparezca. La unión queda asegurada con la cuña naranja y los clips laterales. Para separarla, selecciona la unión y pulsa Desconectar.',
+'With the key OFF, select the orange 12-pin connector. Drag it near the main rear MK3 receptacle, not the camera port. The central slot defines orientation; use the X/Y/Z arrows. Press Connect when offered. The joint is secured by the orange wedge and side clips. To separate it, select the joint and press Disconnect.'),
+step('middle','2 · Une los dos arneses','2 · Join both harnesses',
+'Acerca el conector superior de 4 pines (hembra) al inferior (macho). Reconoce la esquina achaflanada y orienta con las flechas. Pulsa Conectar: esta versión asegura el clip al conectar. Una unión sin asegurar puede conservar alimentación pero interrumpir CAN. Para reasentarla, usa Desconectar y vuelve a conectar.',
+'Bring the upper 4-pin connector (female) near the lower one (male). Identify the chamfered corner and orient it with the arrows. Press Connect: this version secures the clip when connecting. An unsecured joint may retain power while interrupting CAN. To reseat it, use Disconnect, then reconnect.'),
+step('em','3 · Conecta el Expansion Module','3 · Connect the Expansion Module',
+'Acerca el circular del arnés inferior (hembra) al receptáculo del EM (macho). La muesca del inserto define su orientación. Pulsa Conectar. En esta versión ese control completa también el apriete de la rosca. Una rosca a medio apretar puede interrumpir CAN aunque el LED siga parpadeando; desconecta y conecta para completar la unión.',
+'Bring the lower harness circular connector (female) near the EM receptacle (male). The insert notch defines orientation. Press Connect. In this version that control also fully tightens the thread. A partially tightened thread may interrupt CAN while the LED still blinks; disconnect and reconnect to complete the joint.'),
+step('observe','Energiza y observa','Power on and observe',
+'Pulsa la llave para poner ON. Observa el MK3: arranque normal, rueda girando o pantalla apagada. LED del EM apagado: no recibe energía, revisa alimentación. Verde parpadeando lento: operación normal del EM; no demuestra que toda la cadena CAN esté bien. Verde fijo: módulo trabado, primero reinicia. Los otros dos LEDs no tienen función simulada. Los módulos operan de 10 a 30 V DC; por encima de 30 V se dañan y el vehículo requiere convertidor.',
+'Click the key to turn ON. Observe MK3: normal startup, spinning wheel, or screen off. EM LED off: no power, check the supply. Slow blinking green: normal EM operation; it does not prove the entire CAN chain is intact. Steady green: frozen module, restart first. The other two LEDs have no simulated function. Modules operate at 10–30 V DC; above 30 V they are damaged and the vehicle requires a converter.'),
+step('meter','Usa las dos puntas','Use both probes',
+'Elige Voltaje o Continuidad en el multímetro. Selecciona Punta roja · VΩ; arrástrala cerca de un pin o pulsa el pin para acercarla y luego Conectar punta. Repite con Punta negra · COM. Ambas deben estar conectadas para obtener una lectura en el instrumento. Usa Ver display para acercar la cámara. Retirar libera cada punta; retira ambas antes de cambiar de puntos. El selector permite cambiar de modo y OFF apagar el instrumento.',
+'Choose Voltage or Continuity on the multimeter. Select Red probe · VΩ; drag near a pin or click the pin to approach it, then press Connect probe. Repeat with Black probe · COM. Both must be connected to obtain a reading on the instrument. Use View display to focus the camera. Remove releases each probe; remove both before changing test points. The selector changes modes and OFF turns the instrument off.'),
+step('voltage','Comprueba alimentación','Check the power supply',
+'Con llave ON y modo Voltaje, coloca la punta roja en pin 7 del EM (Key Switched Positive) y la negra en pin 8 (Ground / Negative). Se esperan 12 V; 0 V requiere revisar rojo y negro desde MK3 por los arneses y sus conectores. Una lectura negativa indica puntas invertidas. Si la pantalla está apagada, comprueba positivo del MK3 en pin 2 y Ground en pin 1: la alimentación del EM puede seguir presente.',
+'With key ON and Voltage mode, place red on EM pin 7 (Key Switched Positive) and black on pin 8 (Ground / Negative). Expect 12 V; 0 V calls for checking red and black from MK3 through the harnesses and connectors. A negative reading indicates reversed probes. If the screen is off, check MK3 positive at pin 2 and Ground at pin 1: EM power may still be present.'),
+step('end','Continuidad 1 · Extremo a extremo','Continuity 1 · End to end',
+'Pon llave OFF y elige Continuidad. Comprueba por separado CAN LO: pin 9 del extremo pantalla → pin 1 del extremo EM; CAN HI: pin 10 → pin 2. PASA significa conductor continuo entre los dos puntos; NO PASA significa circuito abierto entre ellos, no identifica por sí solo la pieza. Si ambos pasan, no hace falta probar los tramos: continúa con reinicio y sustitución. Si alguna señal no pasa, comprueba los segmentos en el orden siguiente.',
+'Turn key OFF and choose Continuity. Test separately CAN LO: screen-end pin 9 → EM-end pin 1; CAN HI: pin 10 → pin 2. PASS means a continuous conductor between the two points; NO PASS means an open circuit between them, and alone does not identify the part. If both pass, segment tests are unnecessary: continue to restart and replacement. If either fails, test the segments in the following order.'),
+step('upper','Continuidad 2 · Pantalla a medio','Continuity 2 · Screen to middle',
+'Únicamente después de una prueba extremo a extremo que no pasa: retira las puntas y aísla el tramo superior desconectando sus uniones. Mide CAN LO del naranja pin 9 al conector superior de 4 pines pin 3; CAN HI del naranja pin 10 al pin 4. PASA indica continuidad de ese conductor en el tramo superior; NO PASA delimita la interrupción a ese tramo. La alimentación corresponde a positivo 2 → 1 y Ground 1 → 2.',
+'Only after an end-to-end test fails: remove the probes and isolate the upper segment by disconnecting its joints. Measure CAN LO from orange pin 9 to upper 4-pin pin 3; CAN HI from orange pin 10 to pin 4. PASS indicates continuity of that conductor in the upper segment; NO PASS confines the interruption to that segment. Supply maps positive 2 → 1 and Ground 1 → 2.'),
+step('lower','Continuidad 3 · EM a medio','Continuity 3 · EM to middle',
+'Después del tramo superior, retira las puntas y aísla el inferior. Mide CAN LO del circular pin 1 al conector inferior de 4 pines pin 3; CAN HI del circular pin 2 al pin 4. Positivo: 7 → 1; Ground: 8 → 2. Compara los dos tramos para aislar el conductor interrumpido. Que exista continuidad hacia otro pin no demuestra un cableado correcto: el pin 12 del EM es Input 4 — Seat, también naranja, y no CAN HI. CAN HI debe terminar en pin 2.',
+'After the upper segment, remove the probes and isolate the lower one. Measure CAN LO from circular pin 1 to lower 4-pin pin 3; CAN HI from circular pin 2 to pin 4. Positive: 7 → 1; Ground: 8 → 2. Compare both segments to isolate the interrupted conductor. Continuity to another pin does not establish correct wiring: EM pin 12 is Input 4 — Seat, also orange, and is not CAN HI. CAN HI must end at pin 2.'),
+step('repair','Reinicia antes de sustituir','Restart before replacing',
+'Si el LED está verde fijo, reinicia con llave OFF y después ON; observa de nuevo. Solo si el estado persiste tras el reinicio considera sustituir el EM. Si alimentación y continuidad pasan pero persiste la rueda, comprueba EM y pantalla mediante sustitución. Desconecta la pieza, retírala a la zona de piezas retiradas, trae un repuesto y conecta sus uniones. Pantalla, arnés superior, arnés inferior y EM son sustituibles. Los terminales sueltos o mal ubicados se resuelven sustituyendo el arnés completo en esta versión. Reconecta, pon ON y observa pantalla y LED; no hay veredicto automático.',
+'If the LED is steady green, restart with key OFF then ON; observe again. Only if that state persists after restart consider replacing the EM. If power and continuity pass but the wheel persists, check EM and screen by substitution. Disconnect the part, move it to the removed-parts area, bring a spare and connect its joints. Screen, upper harness, lower harness and EM are replaceable. Loose or misplaced terminals are addressed by replacing the whole harness in this version. Reconnect, turn ON and observe the screen and LED; there is no automatic verdict.'),
+step('bypass','Bypass y práctica','Bypass and practice',
+'Si no puedes resolver la falla, el bypass permite operar sin el sistema mientras llega un técnico. Su ubicación solo la conocen técnicos autorizados y supervisores. Desconecta los cables negro y negro/blanco del relé 1 del vehículo; une entre sí los dos conectores que vienen del arnés del vehículo. El bypass se registra por separado, sin puntuación. Cuando quieras aplicar el método sin instrucciones, selecciona Práctica. El instructor elige falla y tramo con I; la guía no revela el escenario activo.',
+'If the fault cannot be resolved, bypass permits operation without the system until a technician arrives. Its location is known only to authorized technicians and supervisors. Disconnect the relay 1 black and black/white cables from the vehicle; join the two vehicle-harness connectors to each other. Bypass is recorded separately, without scoring. To apply the method without instructions, select Practice. The instructor selects the fault and segment with I; this guide never reveals the active scenario.')
+];
+export class LearningFlow {
+ constructor(){this.mode='learning';this.index=0;this.end={};}
+ setMode(mode){if(!['learning','practice'].includes(mode))throw new Error('Invalid mode');this.mode=mode;}
+ observe({mode,segment,signal,sameSignal,passes}){if(mode==='continuity'&&segment===0&&sameSignal&&['lo','hi'].includes(signal))this.end[signal]=passes;}
+ reset(){this.index=0;this.end={};}
+ get steps(){return this.end.lo===true&&this.end.hi===true?lessons.filter(s=>!['upper','lower'].includes(s.id)):lessons;}
+ get current(){return this.steps[Math.min(this.index,this.steps.length-1)];}
+ next(){this.index=Math.min(this.index+1,this.steps.length-1);}
+ previous(){this.index=Math.max(0,this.index-1);}
+}
+export function mountLearning({getLanguage,onChange}){
+ const flow=new LearningFlow(),$=id=>document.getElementById(id);
+ const render=()=>{const lang=getLanguage(),es=lang==='es',s=flow.current;
+ document.documentElement.dataset.trainingMode=flow.mode;
+ $('learningMode').textContent=es?'Aprendizaje':'Learning';$('practiceMode').textContent=es?'Práctica':'Practice';
+ for(const [id,mode] of [['learningMode','learning'],['practiceMode','practice']])$(id).setAttribute('aria-pressed',String(flow.mode===mode));
+ $('learningGuide').hidden=flow.mode!=='learning';$('lessonCounter').textContent=`${es?'Paso':'Step'} ${flow.index+1} / ${flow.steps.length}`;
+ $('lessonTitle').textContent=s.title[lang];$('lessonBody').textContent=s.body[lang];
+ $('lessonPrevious').textContent=es?'Anterior':'Previous';$('lessonNext').textContent=es?'Siguiente':'Next';$('lessonRestart').textContent=es?'Volver al inicio de la guía':'Restart guide';
+ $('lessonPrevious').disabled=flow.index===0;$('lessonNext').disabled=flow.index===flow.steps.length-1;
+ };
+ for(const [id,mode] of [['learningMode','learning'],['practiceMode','practice']])$(id).onclick=()=>{flow.setMode(mode);render();onChange();};
+ $('lessonPrevious').onclick=()=>{flow.previous();render();};$('lessonNext').onclick=()=>{flow.next();render();};$('lessonRestart').onclick=()=>{flow.reset();render();};
+ render();return {flow,render,reset(){flow.reset();render();},observe(data){const before=flow.steps.length,id=flow.current.id;flow.observe(data);if(flow.steps.length!==before){const index=flow.steps.findIndex(s=>s.id===id);flow.index=index<0?flow.steps.findIndex(s=>s.id==='repair'):index;render();}}};
+}

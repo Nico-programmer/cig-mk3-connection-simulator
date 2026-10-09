@@ -156,7 +156,7 @@ for(const type of ['meter','up4','circular']){
  // 1.16: the lead is a simulated rope. After it settles (3 s of frames), every point of it stays
  // outside each rigid solid with at least half its radius of clearance.
  {let ms=performance.now();for(let f=0;f<180;f++){ms+=16;app.animate(ms);}}
- const boxes=app.probeObstacles(0).map(o=>o.obb),points=app.probeTools[0].leadPoints;
+ const lead=app.probeTools[0].lead,boxes=app.allColliders.filter(m=>!lead.ignores(m)).map(app.colliderOf),points=lead.pos;
  const clearance=(p,o)=>{const l=p.clone().sub(o.center).applyMatrix3(o.rotation.clone().transpose()),h=o.halfSize;const q=app.V(Math.max(Math.abs(l.x)-h.x,0),Math.max(Math.abs(l.y)-h.y,0),Math.max(Math.abs(l.z)-h.z,0));return q.length();};
  assert(points&&points.slice(2,-2).every(p=>boxes.every(o=>clearance(p,o)>=.019)),'Settled lead remains outside solid surfaces for '+type);
  target.position.copy(savedPosition);target.quaternion.copy(savedQ);

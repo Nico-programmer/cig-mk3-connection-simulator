@@ -20,7 +20,6 @@ export function resetProbeTools() {
   probeTools.forEach((p, i) => {
     p.contact = null;
     p.blocked = false;
-    p.leadPoints = null;
     p.group.position.set(4.2 + i * 1.1, 0.22, 4.8);
     p.group.rotation.set(-Math.PI / 2, 0, 0);
   });
@@ -79,19 +78,6 @@ export function probePose(contact, clearance = 0.04) {
     quaternion: new T.Quaternion().setFromUnitVectors(V(0, 0, 1), direction),
   };
 }
-export function probeObstacles(index) {
-  return S.allColliders
-    .filter(
-      (m) =>
-        m.userData.probeLead === undefined &&
-        !isDescendant(m, probeTools[index].group) &&
-        !m.userData.cableOwner,
-    )
-    .map((m) => ({
-      mesh: m,
-      obb: colliderOf(m),
-    }));
-}
 // ---- Meter leads (1.16): physical ropes from the meter jacks to the back of each probe ----
 // The lead pays out as needed with 25 % slack over the straight distance, so it always hangs
 // naturally and never piles up across the bench. Its maximum length limits how far a probe goes.
@@ -127,14 +113,12 @@ function ensureLead(index) {
   });
   tool.lead.mesh.userData.probeLead = index;
   probeWires.add(tool.lead.mesh);
-  tool.wire = tool.lead.mesh;
   return tool.lead;
 }
 // Called every frame by the animation loop.
 export function updateLeads(dt) {
   probeTools.forEach((tool, i) => {
     ensureLead(i).update(dt);
-    tool.leadPoints = tool.lead.points();
   });
 }
 export function refreshProbes() {
@@ -153,8 +137,6 @@ export function refreshProbes() {
     tool.group.updateMatrixWorld(true);
     const lead = ensureLead(i);
     lead.wake();
-    tool.leadBlocked = false;
-    tool.leadPoints = lead.points();
   });
 }
 export function placeProbe(index, contact) {

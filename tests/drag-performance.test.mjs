@@ -25,18 +25,5 @@ app.buildScenario('assembly');const mover=app.parts[0],target=app.parts[3];mover
 const stopped=mover.root.position.clone();app.moveSelected(app.V(5,3,0));assert(mover.root.position.distanceTo(stopped)<.026,'Continued pressure preserves contact');
 console.log('Persistent meshes, untouched buffers and body-to-body collision checks passed.');
 
-const T=await import(path.join(temp,'dist/vendor/three.module.js'));
-const {updateTube,curveFor}=await import(path.join(temp,'dist/drag-performance.js'));
-for(const linear of [false,true]){
- const points=[new T.Vector3(0,1,0),new T.Vector3(1,.3,.2),new T.Vector3(3,.8,.5)];
- const curve=curveFor(points,linear),segments=linear?Math.max(60,Math.ceil(curve.getLength()/.04)):60;
- const mesh=new T.Mesh(new T.TubeGeometry(curve,segments,.086,8,false),new T.MeshStandardMaterial());mesh.userData.cableRadius=.086;
- for(let j=0;j<6;j++){
-  points[1].y+=.03;const updated=curveFor(points,linear);updateTube(mesh,updated,linear);
-  const expected=new T.TubeGeometry(updated,linear?Math.max(60,Math.ceil(updated.getLength()/.04)):60,.086,8,false);
-  for(const name of ['position','normal','uv']){const actual=mesh.geometry.attributes[name].array,wanted=expected.attributes[name].array;assert(actual.length===wanted.length&&actual.every((v,i)=>Math.abs(v-wanted[i])<1e-6),'Reused '+name+' matches original TubeGeometry ('+linear+')');}
-  assert(mesh.geometry.index.array.every((v,i)=>v===expected.index.array[i]),'Triangle topology is unchanged');expected.dispose();
- }
- mesh.geometry.dispose();mesh.material.dispose();
-}
-console.log('Tube vertices, normals, UVs and topology match the original model generation.');
+// 1.19: the tube-buffer helper test was removed with updateTube()/curveFor(); cables are ropes (rope.js).
+

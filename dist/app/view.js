@@ -1,44 +1,9 @@
 // Camera focus animation and the spring-arm camera that keeps the view outside solids.
 import * as T from "three";
 import { cachedCollider as colliderOf } from "../drag-performance.js";
-import { availablePorts, eligibleMate } from "./connection.js";
-import { selectedPorts } from "./movement.js";
 import { camera, controls, lastCamera } from "./scene.js";
-import { forward, worldPos } from "./spatial.js";
-import { V } from "./util.js";
 import { S } from "./state.js";
 
-export function considerFocus() {
-  if (!S.selected) return;
-  let nearest = null,
-    min = 2.0;
-  for (const p of selectedPorts(S.selected))
-    for (const q of availablePorts()) {
-      if (p.joint?.secured) continue;
-      if (!eligibleMate(p, q) && p.mate !== q) continue;
-      const d = worldPos(p).distanceTo(worldPos(q));
-      if (d < min) {
-        min = d;
-        nearest = q;
-      }
-    }
-  if (nearest && S.focus !== nearest) {
-    if (!S.returnView)
-      S.returnView = {
-        position: camera.position.clone(),
-        target: controls.target.clone(),
-      };
-    S.focus = nearest;
-    const target = worldPos(nearest),
-      normal = forward(nearest);
-    const pos = target
-      .clone()
-      .addScaledVector(normal, 4.2)
-      .add(V(0, 1.9, 0));
-    if (pos.y < 1.1) pos.y = 1.1;
-    startCamera(pos, target);
-  } else if (!nearest && S.focus && min === 2.0) restoreCamera();
-}
 // Length of every camera transition: focus on a connector, return with Esc, view display.
 export const CAMERA_TRANSITION_MS = 1000;
 export function startCamera(position, target) {

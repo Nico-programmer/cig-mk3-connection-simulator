@@ -34,7 +34,9 @@ Bypass connects the vehicle-side pair after detaching it from the Relay-1 pair. 
 - `dist/geometry.js`: hardware meshes, pin locations and collision volumes.
 - `dist/electrical.js`: documented pin maps and connected-conductor graph. Faults remove or reroute actual graph edges. Replacing an unrelated component leaves the fault intact.
 - `dist/vendor/`: Three.js 0.186.1, OrbitControls and OBB under the included MIT license.
-- `tests/`: electrical and computational interaction checks. Run `node tests/circuit.test.mjs` and `node tests/interaction.test.mjs`.
+- `dist/app/colliders.js`, `view.js`, `rope.js`, `cables.js`, `probes.js`, `bypass.js`: rigid collision, camera guard and the physical cables, rebuilt in 1.14–1.18.1 (see the version notes below and `dist/app/README.md`).
+- `dist/collision.js`: the segment-vs-box test used to choose a probe's approach direction. `dist/drag-performance.js`: the world-space collider cache. Both were trimmed to what is still used in 1.19.
+- `tests/`: 12 suites (electrical, lessons, interaction, collision, camera, probes, cables, performance budgets). Run them one at a time with `node --test --test-concurrency=1 tests/*.test.mjs` (running several in parallel can exhaust memory on small machines), or a single one with `node tests/<name>.test.mjs`.
 
 ## Validation boundary
 
@@ -100,6 +102,12 @@ The unsecured-joint lesson interrupts CAN at the joint bridge only, preserving v
 
 These are learning-only cases explicitly requested by the user; no random evaluator or instructor setup is added. Existing F1–F12 circuit semantics and the prior lower-harness example are retained. Tests verify both segment passes/end-to-end failure, continued 12 V supply/normal EM LED, different reseating outcomes, physical harness replacement, replacement pin highlighting and repeat/reset behavior. WebGL rendering remains unverified.
 
+
+## Current state (1.19)
+- **Collision:** one rigid body per part, 79 boxes (77 hardware + the two meter plugs). Moves are swept with bisection and slide along surfaces; rotations are checked and lift off the table when only the table is in the way. Mated connectors and a probe on the pin it measures are the only exemptions.
+- **Camera:** goes exactly where orbit and zoom put it; it slides toward the target only when that point would be inside a solid. Transitions last 1 s, also on lesson changes.
+- **Cables:** meter leads, the four harness cables and the six bypass wires are physical ropes (`rope.js`): gravity, fixed length with automatic slack, collision with the hardware, the trays and each other, sleep when still. Cables never block parts; a connector or probe stops at the reach of its cable.
+- **Unchanged since 1.0:** electrical model, lessons, meter readings, connection logic, part geometry and pins.
 
 ## Version naming
 From now on versions are numbered 1.x: 1.0 is the original v16; each 1.x is one step of the collision and cable repair.
@@ -235,3 +243,14 @@ Fixes in `rope.js` found while testing contact:
 Meter leads (`bench.js`, `probes.js`): each jack now holds a right-angle banana plug, as on real test leads. The plug enters the jack, turns 90° and runs along the face toward the meter's lower-left corner, so the lead leaves level with the face just past the lower edge and simply drops. The plug bodies are rigid solids, so the other lead lies against them. Lead length and reach are unchanged.
 
 Tests: `tests/cable-contact.test.mjs` is new. Across 61 settled states (every scenario and lesson step) no two cables overlap by more than 0.02, and the red lead laid across the bypass and harness cables at four places rests on them. In `rope.test.mjs` the active-frame budget is now 6 ms (it adds cable contact), and a single-frame lead stretch of up to 25 % is allowed when another probe is swept 3 units through it in one frame, provided it recovers on the next frame.
+
+## 1.19: cleanup (step 8, last step of the rebuild)
+No behaviour changes. A state fingerprint of 121 snapshots (about 119,000 lines: scenes, positions, cables, interface and readings across every scenario and lesson step) is identical before and after, and the 12 test suites pass.
+
+Removed code that nothing used any more:
+- `collision.js`: `routeLead` (the polyline lead router replaced by ropes in 1.16).
+- `drag-performance.js`: `colliderGrid`, `updateTube`, `pathKey`, `curveFor` (helpers for the pre-1.16 cables).
+- `app/movement.js` `movingSolids`, `app/view.js` `considerFocus`, `app/scene.js` `readoutUntil`, `app/probes.js` `probeObstacles`, and the probe fields `leadPoints`, `leadBlocked` and `wire`, plus `Rope.points()`. `leadPoints` copied 128 points every frame only for one test.
+- Unused imports in `view.js`, `movement.js` and `collision.js`.
+
+Tests: the tube-buffer check in `drag-performance.test.mjs` went with `updateTube`; the lead-clearance check in `interaction.test.mjs` now reads the rope directly. Documentation: this section, "Current state" above, the module map in `dist/app/README.md`, `LEEME-RESPALDO.md` (how to run and test 1.19) and a note on `QA-NOTES.md` that it describes v16.

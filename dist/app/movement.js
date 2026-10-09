@@ -4,7 +4,7 @@ import { HARNESS_REACH, jacketEnd, refreshCables, updateCable } from "./cables.j
 import { moveWithSlide, refreshColliders, rotateChecked } from "./colliders.js";
 import { matingInfo } from "./connection.js";
 import { refreshProbes } from "./probes.js";
-import { isDescendant, worldPos } from "./spatial.js";
+import { worldPos } from "./spatial.js";
 import { updateSelected } from "./ui.js";
 import { V } from "./util.js";
 import { S } from "./state.js";
@@ -15,9 +15,6 @@ export function selectedEntity(s) {
 }
 export function selectedPorts(s) {
   return s.port && !["screen", "em"].includes(s.port.kind) ? [s.port] : s.part.ports;
-}
-export function movingSolids(entity) {
-  return S.allColliders.filter((m) => isDescendant(m, entity));
 }
 export function moveSelected(desired) {
   if (!S.selected) return;

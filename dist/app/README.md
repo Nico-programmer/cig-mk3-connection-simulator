@@ -1,4 +1,4 @@
-# Módulos de la aplicación (versión 1.18.1)
+# Módulos de la aplicación (versión 1.19)
 
 `dist/app.js` es solo el punto de entrada: carga los módulos de esta carpeta en el orden de arranque original y llama a `buildScenario()` y al bucle de animación.
 
@@ -26,7 +26,7 @@ La versión 1.1 es una reestructuración pura de la 1.0 (antes llamada v16): cad
 | `colliders.js` | Colisión del hardware rígido (reconstruido en la 1.14). Las excepciones viven solo en `exempt()`. Movimiento con deslizamiento (`moveWithSlide`) y rotación comprobada (`rotateChecked`). |
 | `cables.js` | Cables de los arneses (1.17): una cuerda `Rope` por arnés que sale por la parte trasera de ambos conectores, con los 4 hilos de color (rojo, negro, naranja, café) entre la carcasa y la funda. Largo `harnessLength`, máximo `HARNESS_MAX`, alcance `HARNESS_REACH`. |
 | `probes.js` | Colocación y movimiento de las puntas (optimizado en la 1.13). Desde la 1.16, sus cables son cuerdas `Rope`: largo `leadLength`, máximo `LEAD_MAX`, alcance `LEAD_REACH`. Desde la 1.18.1 el cable sale del extremo de la clavija en ángulo, al ras de la cara, y cae por el borde: ya no forma un arco sobre los bornes. |
-| `rope.js` | Cable físico reutilizable (1.16): cadena de partículas con gravedad, colisión con el hardware rígido y las bandejas, largo sin estiramiento, reposo automático. Lo usarán también los arneses y el bypass. |
+| `rope.js` | Cable físico reutilizable (1.16): cadena de partículas con gravedad, colisión con el hardware rígido y las bandejas, largo sin estiramiento, reposo automático. La usan los cables de las puntas, los arneses (1.17) y el bypass (1.18); desde la 1.18.1 los cables chocan entre sí. |
 | `bypass.js` | Conectores del bypass y sus cables (1.18): cuerdas `Rope`. Los cables del relé 1 van de la parte trasera de su conector a un clip, siguen pegados al borde frontal de la mesa y desde un segundo clip llegan a una derivación detrás del conector circular del arnés inferior; la derivación baja directo a la mesa, de modo que el cable pasa por debajo del conector y nunca lo rodea ni lo atraviesa. Desde la 1.18.1 estos cables se tienden a ras de mesa (no en arco por arriba) al cambiar de escenario o lección, así nunca caen colgados sobre el circular. Los del vehículo van del conector al borde de la mesa. El cable negro/blanco lleva su raya pintada. |
 | `view.js` | Enfoque de la vista y resguardo de la cámara (reconstruido en la 1.15): la cámara va donde la piden los controles y solo se desliza hacia el objetivo si ese punto queda dentro de un sólido. |
 | `meter.js` | Lecturas, display y panel del multímetro. |
@@ -39,7 +39,7 @@ La versión 1.1 es una reestructuración pura de la 1.0 (antes llamada v16): cad
 | `learning-mount.js` | Monta la guía de lecciones (`../learning.js`). |
 | `lessons-bridge.js` | `prepareLesson` y `lessonCheck`: lo que las lecciones leen del banco. |
 
-Fuera de esta carpeta y sin cambios: `../electrical.js`, `../learning.js`, `../geometry.js`, `../collision.js`, `../drag-performance.js` y `../vendor/`.
+Fuera de esta carpeta: `../electrical.js`, `../learning.js`, `../geometry.js` y `../vendor/`, sin cambios desde la 1.0. `../collision.js` (prueba segmento-caja que usa `probePose`) y `../drag-performance.js` (caché de colisionadores) se recortaron en la 1.19 a lo que todavía se usa.
 
 ## Reglas para modificar
 
@@ -52,7 +52,7 @@ Fuera de esta carpeta y sin cambios: `../electrical.js`, `../learning.js`, `../g
 ## Reglas de colisión (desde 1.14)
 
 - **Sólidos:** solo el hardware rígido, es decir, las mallas con `userData.solid`: MK3, EM, carcasas de conectores, conectores del bypass, llave, multímetro y puntas. Son unas 77 cajas.
-- **Cables:** son flexibles y nunca bloquean. Hasta que se conviertan en cuerdas (pasos 5–7), una pieza puede pasar visualmente a través de un cable.
+- **Cables:** son cuerdas físicas que nunca bloquean a las piezas: ceden y se apartan. Lo único que detiene una pieza por un cable es el largo de ese cable (alcance).
 - **Excepciones (`exempt`):** dos conectores acoplados entre sí no chocan, y la punta no choca con el conector donde mide.
 - **Puntas conectadas:** una punta conectada a un pin de la pieza que se mueve la acompaña y no la bloquea.
 - **Mesa y cámara:** ninguna pieza baja de la mesa (y = −0,115). Una pieza arrastrada hacia la vista se detiene antes de entrar en la esfera de la cámara (radio 0,38); así la cámara no salta por detrás de lo que tienes en la mano.

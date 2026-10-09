@@ -1,3 +1,5 @@
+> **Nota (1.19):** estas notas describen la v16 (1.0) y ya no corresponden al código actual. Las colisiones, la cámara y los cables se reconstruyeron en las versiones 1.14–1.18.1; ver `README.md` ("Current state") y `dist/app/README.md`.
+
 # v16 — drag performance, based on published v12
 
 Scope: runtime efficiency only. Hardware model builders and geometry.js are byte-identical to v12. Electrical behavior, lesson content, styles and cable routing are unchanged. No flexible-rope code or v14 collision removals are included.

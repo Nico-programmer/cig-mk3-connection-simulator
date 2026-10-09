@@ -103,6 +103,5 @@ box(tray, 21, 0.1, 3.1, 0x1b2b37, 0, -0.07, -5.45);
 box(tray, 21, 0.1, 2, 0x192a35, 0, -0.07, 6.8);
 for (const x of [-10.5, -5.25, 0, 5.25, 10.5]) box(tray, 0.04, 0.03, 3, 0x63717a, x, 0.01, -5.45, false);
 export let lastCamera = camera.position.clone();
-export let readoutUntil = 0;
 export const dynamic = new T.Group();
 scene.add(dynamic);

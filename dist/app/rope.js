@@ -165,9 +165,6 @@ export class Rope {
     this.layout(ends);
     this.render();
   }
-  points() {
-    return this.pos.map((p) => p.clone());
-  }
   wake() {
     this.sleep = 0;
   }

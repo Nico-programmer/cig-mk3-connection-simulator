@@ -44,3 +44,6 @@ Electrical scenarios, both configurable harness segments, reboot behavior, volta
 The interaction suite checks button connection/disconnection, probe dragging and electrical contact, assembled clearance, swept movement, camera exclusion and hitbox visualization. Static project browser rendering remains unverified in this runtime.
 
 The complete meter workflow is checked through the actual DOM button handlers: choose voltage, approach two terminals, explicitly connect both probes, read 12.0 V, focus the display, change mode, remove both probes, reconnect to an intact conductor, read continuity and remove again. Pointer approach only offers the connection; it does not perform it.
+
+## v4 cursor and instrument visibility
+The scene never requests pointer lock. A separate cursor overlay remains visible even before WebGL initializes; native cursors change on controls, parts and pins. The meter controls have an explicit layer above the canvas. Selecting red or black and clicking an exposed pin brings the probe close; the user must still press Connect probe. The entry scripts and stylesheet have v4 cache keys. The new tests exercise raycast contact clicks, visible connection controls, 12.0 V, continuity and removal. Browser rendering is not verified.

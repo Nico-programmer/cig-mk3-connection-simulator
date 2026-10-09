@@ -2,6 +2,36 @@
 
 Three.js physical connection and diagnostic training simulator. All public assets are self-contained in `dist/`; no CDN, account service or runtime API is required. Serve that directory with any static HTTP server. Opening `index.html` directly with `file://` is not supported by browser ES modules.
 
+## Run locally
+
+The simulator is a static web page: no install, build step, account or internet connection is needed. It must be served over HTTP, because browsers block ES modules opened directly from disk (`file://`).
+
+**Option 1 — Python (recommended)**
+
+1. Install Python 3 if you do not have it (on Windows, from python.org or the Microsoft Store).
+2. Open a terminal in the project folder (the one that contains `dist/`).
+3. Start a local server:
+   - Windows: `py -m http.server 8000 --directory dist`
+   - macOS / Linux: `python3 -m http.server 8000 --directory dist`
+4. Open <http://localhost:8000> in Chrome, Edge or Firefox (WebGL required).
+5. Stop the server with `Ctrl + C` in the terminal.
+
+**Option 2 — Node.js**
+
+From the project folder: `npx serve dist`, then open the address it prints (usually <http://localhost:3000>).
+
+**Option 3 — VS Code**
+
+Install the *Live Server* extension, open `dist/index.html` and choose **Open with Live Server**.
+
+If the page stays blank or shows an old version, reload without cache (`Ctrl + F5`, or `Cmd + Shift + R` on macOS). If port 8000 is busy, use another number, e.g. `8080`.
+
+**Run the tests** (Node.js 20 or newer, from the project folder):
+
+    node --test --test-concurrency=1 tests/*.test.mjs
+
+One suite at a time: `node tests/rope.test.mjs`. The tests use a simulated renderer and do not open a browser.
+
 ## Use (v2 — connection buttons and physical probes)
 
 - Drag a disconnected connector near its counterpart, then press **Conectar / Connect**. Orientation and insertion are automatic; the circular joint is secured by the same action. There is no automatic snap during drag.

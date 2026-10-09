@@ -7,11 +7,13 @@ import { learning } from "./learning-mount.js";
 import { drawMeter, refreshVoltageReading } from "./meter.js";
 import { selectedEntity } from "./movement.js";
 import { camera, controls, renderer, scene } from "./scene.js";
+import { updateLeads } from "./probes.js";
 import { paintScreen } from "./screens.js";
 import { V, tr } from "./util.js";
 import { guardCamera, restoreCameraDesired } from "./view.js";
 import { S } from "./state.js";
 
+let lastFrameMs = null;
 export let lastEval = 0,
   states = {
     screens: {},
@@ -32,6 +34,8 @@ export function animate(ms) {
     if (t >= 1) S.cameraMotion = null;
   }
   guardCamera();
+  updateLeads(lastFrameMs === null ? 1 / 60 : Math.max(0, ms - lastFrameMs) / 1000);
+  lastFrameMs = ms;
   if (S.drag && S.cameraMotion) {
     ray.setFromCamera(pointer, camera);
     const at = ray.ray.intersectPlane(plane, V());

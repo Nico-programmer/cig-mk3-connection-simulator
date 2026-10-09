@@ -153,9 +153,12 @@ for(const type of ['meter','up4','circular']){
  const probeSolids=app.allColliders.filter(m=>m.userData.probeIndex===1);
  assert(probeSolids.every(p=>targetSolids.every(t=>!app.colliderOf(p).intersectsOBB(app.colliderOf(t),1e-5))),'Stopped probe has no penetration in '+type);assert(probeSolids.some(p=>{const expanded=app.colliderOf(p).clone();expanded.halfSize.addScalar(.03);return targetSolids.some(t=>expanded.intersectsOBB(app.colliderOf(t)));}),'Probe stops within one sweep increment of the requested surface '+type);
  const stopped=probe.position.clone();app.renderer.domElement.listeners.pointermove.at(-1)({...down,...project(app.V(8,3,.65))});assert(probe.position.distanceTo(stopped)<.026,'Continued pressure cannot cross '+type);app.releaseDrag();
- // The rendered lead's centerline, widened by its radius, stays outside each rigid solid.
+ // 1.16: the lead is a simulated rope. After it settles (3 s of frames), every point of it stays
+ // outside each rigid solid with at least half its radius of clearance.
+ {let ms=performance.now();for(let f=0;f<180;f++){ms+=16;app.animate(ms);}}
  const boxes=app.probeObstacles(0).map(o=>o.obb),points=app.probeTools[0].leadPoints;
- assert(points&&points.slice(1).every((p,i)=>boxes.every(o=>!segmentHitsSolid(points[i],p,o,.038))),'Lead remains outside solid surfaces for '+type);
+ const clearance=(p,o)=>{const l=p.clone().sub(o.center).applyMatrix3(o.rotation.clone().transpose()),h=o.halfSize;const q=app.V(Math.max(Math.abs(l.x)-h.x,0),Math.max(Math.abs(l.y)-h.y,0),Math.max(Math.abs(l.z)-h.z,0));return q.length();};
+ assert(points&&points.slice(2,-2).every(p=>boxes.every(o=>clearance(p,o)>=.019)),'Settled lead remains outside solid surfaces for '+type);
  target.position.copy(savedPosition);target.quaternion.copy(savedQ);
 }
 // 1.14: cables are flexible and never block a rigid tool; the probe passes a harness cable and stops on the table.

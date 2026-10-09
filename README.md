@@ -153,3 +153,24 @@ From now on, adjustments within a version are numbered 1.x.y.
 
 ## 1.15.2: camera glides to the bench when a lesson changes
 Choosing a lesson, repeating it, or crossing into a new example inside a lesson rebuilds the bench. The camera used to jump in one frame to the home view (up to 36.7 units). It now glides from wherever it was to the home view over the same 1 s transition (`travelHome` in `app/lessons-bridge.js`). `buildScenario` is unchanged, so start-up still opens directly on the home view.
+
+
+## 1.16: meter leads are physical ropes (step 5)
+New `app/rope.js`, a reusable particle-chain cable. The meter leads in `app/probes.js` use it, and `app/loop.js` advances it each frame. The polyline lead routing (`routeLead`, `leadPath`) is no longer used, so a lead can no longer stop a probe from moving. Only the lead's reach (`LEAD_REACH`, about 18 units) limits a probe.
+
+The leads:
+- hang under real gravity, rest on the table, and drape over parts;
+- leave the meter jack and the probe handle in a straight line;
+- never stretch: one inextensible pass, and the length only pays out under lasting, geometric tension;
+- never pass through rigid hardware or the trays;
+- sleep at zero cost when still.
+
+Cost: about 0.2 ms per frame asleep and about 2 ms with both leads moving (CPU, mocked renderer). In Chromium, there were no long tasks during a measurement.
+
+Tests: `tests/rope.test.mjs` is new. It checks:
+- the leads hang, sleep, and keep their cost low;
+- a real measurement reads PASA with both leads simulated;
+- the reach limit works;
+- 120 seeded random drags, teleports, resets, scenario changes and lesson changes, checked every frame. In that run there was never a loop, never an invalid value, at most 2.4 % whole-lead stretch, and no penetration once settled.
+
+In `interaction.test.mjs`, the routing-specific "lead clearance" check now lets the rope settle for 3 s before checking it. `refreshProbes` now refreshes the probe's world matrix, which 1.15 only did as a side effect of lead routing.

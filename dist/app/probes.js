@@ -1,14 +1,14 @@
 // Probe placement, probe leads and probe movement.
 import * as T from "three";
-import { routeLead, segmentHitsSolid } from "../collision.js";
-import { cachedCollider as colliderOf, curveFor, pathKey, updateTube } from "../drag-performance.js";
+import { segmentHitsSolid } from "../collision.js";
+import { cachedCollider as colliderOf } from "../drag-performance.js";
 import { PINS } from "../electrical.js";
-import { cable } from "../geometry.js";
 import { meter } from "./bench.js";
 import { refreshColliders } from "./colliders.js";
 import { hits } from "./input.js";
 import { drawMeter, takeProbe, updateMeterControls } from "./meter.js";
 import { probeTools, probeWires } from "./probe-tools.js";
+import { Rope } from "./rope.js";
 import { camera } from "./scene.js";
 import { ancestorData, forward, isDescendant, worldQ } from "./spatial.js";
 import { updateSelected } from "./ui.js";
@@ -92,20 +92,48 @@ export function probeObstacles(index) {
       obb: colliderOf(m),
     }));
 }
-export function leadPath(index, obstacles = probeObstacles(index)) {
-  const g = probeTools[index].group,
-    start = meter.localToWorld(V(index ? -0.63 : 0.63, -1.44, 0.4)),
-    end = g.localToWorld(V(0, 0, 1.1));
-  const boxes = obstacles.map((o) => o.obb),
-    previous = probeTools[index].leadPoints;
-  if (previous) {
-    const points = previous.map((p) => p.clone());
-    points[0] = start;
-    points[points.length - 1] = end;
-    if (points.slice(1).every((p, j) => !boxes.some((o) => segmentHitsSolid(points[j], p, o, 0.042))))
-      return points;
-  }
-  return routeLead(start, end, boxes, 0.042);
+// ---- Meter leads (1.16): physical ropes from the meter jacks to the back of each probe ----
+// The lead pays out as needed with 25 % slack over the straight distance, so it always hangs
+// naturally and never piles up across the bench. Its maximum length limits how far a probe goes.
+export const LEAD_MAX = 24,
+  LEAD_SLACK = 1.25,
+  LEAD_EXTRA = 1.2,
+  LEAD_REACH = (LEAD_MAX - LEAD_EXTRA) / LEAD_SLACK;
+export const leadLength = (d) => Math.min(LEAD_MAX, Math.max(3.5, d * LEAD_SLACK + LEAD_EXTRA));
+export function leadEnds(index) {
+  const g = probeTools[index].group;
+  meter.updateWorldMatrix(true, false);
+  g.updateWorldMatrix(true, false);
+  return {
+    a: meter.localToWorld(V(index ? -0.63 : 0.63, -1.44, 0.4)),
+    aDir: V(0, 0, 1).applyQuaternion(meter.getWorldQuaternion(new T.Quaternion())),
+    b: g.localToWorld(V(0, 0, 1.1)),
+    bDir: V(0, 0, 1).applyQuaternion(g.getWorldQuaternion(new T.Quaternion())),
+  };
+}
+function ensureLead(index) {
+  const tool = probeTools[index];
+  if (tool.lead) return tool.lead;
+  tool.lead = new Rope({
+    count: 64,
+    radius: 0.038,
+    color: index ? 0x10151b : 0xd84132,
+    getEnds: () => leadEnds(index),
+    lengthFor: leadLength,
+    maxLength: LEAD_MAX,
+    ignores: (m) => isDescendant(m, tool.group),
+  });
+  tool.lead.mesh.userData.probeLead = index;
+  probeWires.add(tool.lead.mesh);
+  tool.wire = tool.lead.mesh;
+  return tool.lead;
+}
+// Called every frame by the animation loop.
+export function updateLeads(dt) {
+  probeTools.forEach((tool, i) => {
+    ensureLead(i).update(dt);
+    tool.leadPoints = tool.lead.points();
+  });
 }
 export function refreshProbes() {
   probeTools.forEach((tool, i) => {
@@ -118,37 +146,13 @@ export function refreshProbes() {
         tool.group.quaternion.copy(pose.quaternion);
       }
     }
-    const points = leadPath(i);
-    if (!points) {
-      tool.leadBlocked = true;
-      if (tool.wire) {
-        tool.wire.geometry.dispose();
-        tool.wire.material.dispose();
-        probeWires.remove(tool.wire);
-        tool.wire = null;
-        tool.wireKey = null;
-      }
-      return;
-    }
+    // Keep the probe's world matrix current so a click right after a move never ray-casts
+    // against its previous position (1.15 got this as a side effect of lead routing).
+    tool.group.updateMatrixWorld(true);
+    const lead = ensureLead(i);
+    lead.wake();
     tool.leadBlocked = false;
-    tool.leadPoints = points;
-    const key = pathKey(points);
-    if (tool.wire && tool.wireKey === key) {
-      tool.wire.visible = true;
-      return;
-    }
-    let wire = tool.wire;
-    if (!wire) {
-      wire = cable(points, i ? 0x10151b : 0xd84132, 0.038, true);
-      wire.raycast = () => {};
-      probeWires.add(wire);
-      tool.wire = wire;
-    } else updateTube(wire, curveFor(points, true), true);
-    wire.visible = true;
-    tool.wireKey = key;
-    wire.traverse((m) => {
-      m.userData.probeLead = i;
-    });
+    tool.leadPoints = lead.points();
   });
 }
 export function placeProbe(index, contact) {
@@ -209,12 +213,11 @@ export function moveProbe(index, desired, contact = null) {
     fromQ = group.quaternion.clone(),
     targetQ = contact ? probePose(contact).quaternion : fromQ.clone();
   const obstacles = S.allColliders
-      .filter((m) => !isDescendant(m, group) && m.userData.probeLead === undefined)
-      .map((m) => ({
-        mesh: m,
-        obb: colliderOf(m),
-      })),
-    leadObstacles = probeObstacles(index);
+    .filter((m) => !isDescendant(m, group) && m.userData.probeLead === undefined)
+    .map((m) => ({
+      mesh: m,
+      obb: colliderOf(m),
+    }));
   const count = Math.max(
     1,
     Math.ceil(from.distanceTo(desired) / 0.025),
@@ -227,17 +230,14 @@ export function moveProbe(index, desired, contact = null) {
       oldQ = group.quaternion.clone();
     group.position.copy(from).lerp(desired, i / count);
     group.quaternion.copy(fromQ).slerp(targetQ, i / count);
-    const points = leadPath(index, leadObstacles),
-      otherIndex = 1 - index,
-      otherPoints = leadPath(otherIndex);
-    if (probeBlocked(index, contact, obstacles) || !points || !otherPoints) {
+    const ends = leadEnds(index),
+      outOfReach = ends.a.distanceTo(ends.b) > LEAD_REACH;
+    if (probeBlocked(index, contact, obstacles) || outOfReach) {
       tool.blocked = true;
       group.position.copy(old);
       group.quaternion.copy(oldQ);
       break;
     }
-    tool.leadPoints = points;
-    probeTools[otherIndex].leadPoints = otherPoints;
     accepted = true;
   }
   refreshProbes();

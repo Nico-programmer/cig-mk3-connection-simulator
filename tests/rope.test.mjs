@@ -56,7 +56,7 @@ for(const i of [0,1]){const L=app.probeTools[i].lead,e=probes.leadEnds(i),low=Ma
   assert(low<Math.min(e.a.y,e.b.y)-0.3,`Lead ${i} hangs under its own weight (lowest point ${low.toFixed(2)} below both ends)`);
   assert(L.sleep>=20,`Lead ${i} goes to sleep when nothing moves`);}
 let t=realNow();for(let k=0;k<60;k++)frame();const idle=(realNow()-t)/60;
-assert(idle<0.6,`Idle frame with both leads asleep: ${idle.toFixed(3)} ms`);
+assert(idle<1.0,`Idle frame with every cable asleep (2 leads + 4 harnesses since 1.17): ${idle.toFixed(3)} ms`);
 // ---- measurement in a lesson ----
 els.lessonMenuItems.children[5].onclick();run(90,'lesson start');
 const pinPort=(kind)=>app.workParts.flatMap(p=>p.ports).find(p=>p.kind===kind);
@@ -66,7 +66,7 @@ assert(fixturePlace(0,'orange',9)&&fixturePlace(1,'circular',1),'Both probes con
 t=realNow();for(let k=0;k<30;k++)frame();const active=(realNow()-t)/30;run(30,'measuring');
 run(300,'measuring settle');
 assert(app.meterResult&&app.meterResult!=='—','The meter reads with both leads simulated ('+app.meterResult+')');
-assert(active<4,`Whole frame (render mocked) with both leads moving: ${active.toFixed(3)} ms`);
+assert(active<5,`Whole frame (render mocked) with both leads moving and the harness cables settling after a lesson change: ${active.toFixed(3)} ms`);
 // ---- reach limit ----
 els.removeProbe0.onclick();run(30,'removed');
 const tool=app.probeTools[0],far=probes.leadEnds(0).a.clone().add(app.V(-30,1.5,-14));

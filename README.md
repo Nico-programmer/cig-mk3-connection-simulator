@@ -195,3 +195,8 @@ Tests: `tests/harness.test.mjs` is new.
 - The reach limit and frame cost: about 0.7 ms idle with every cable asleep, 1.7 ms while dragging a connector.
 
 The 1.14 cable test in `interaction.test.mjs` reads the rope instead of the old curve.
+
+## 1.17.1: straight, slim probes
+Each probe had a wide finger guard (0.34) next to the tip. On adjacent pins (as close as 0.205 on the circular and 12-pin connectors), the second probe hit the first, so 86 of 348 documented pin pairs could not be measured with both probes at once. The probes in `app/probe-tools.js` are now straight like real meter probes: a thin metal tip (radius 0.03) and a slim square handle (0.15), with nothing sticking out. The overall length and the lead attachment are unchanged.
+
+`tests/probe-pairs.test.mjs` connects both probes on every pair of documented pins of every connector, free and mated: 348 of 348 now succeed with no overlap (1.17: 86 failures). In Chromium, red on circular pin 8 with black on pin 1 both connect, and the voltage lesson's pins 7/8 read 12.0 V. The cost bounds in `rope.test.mjs` now account for the four harness ropes added in 1.17.

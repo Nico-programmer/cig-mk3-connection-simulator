@@ -15,10 +15,11 @@ for (let i = 0; i < 2; i++) {
   g.userData.probeIndex = i + 1;
   g.position.set(4.2 + i * 1.1, 0.22, 4.8);
   const color = i ? 0x252d35 : 0xd84132;
-  const tip = cylinder(g, 0.065, 0.3, palette.metal, 0, 0, 0.15);
+  // Straight probe like a real meter lead (1.17.1): a thin metal tip and a slim square
+  // handle, nothing sticking out, so two probes fit on adjacent pins (closest pins 0.205 apart).
+  const tip = cylinder(g, 0.03, 0.3, palette.metal, 0, 0, 0.15);
   tip.userData.probeTip = true;
-  box(g, 0.19, 0.19, 0.75, color, 0, 0, 0.66, false);
-  box(g, 0.34, 0.27, 0.1, color, 0, 0, 0.29, false);
+  box(g, 0.15, 0.15, 0.75, color, 0, 0, 0.675, false);
   g.rotation.x = -Math.PI / 2;
   probeGroup.add(g);
   g.traverse((m) => {

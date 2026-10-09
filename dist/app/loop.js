@@ -9,7 +9,7 @@ import { selectedEntity } from "./movement.js";
 import { camera, controls, renderer, scene } from "./scene.js";
 import { paintScreen } from "./screens.js";
 import { V, tr } from "./util.js";
-import { guardCamera } from "./view.js";
+import { guardCamera, restoreCameraDesired } from "./view.js";
 import { S } from "./state.js";
 
 export let lastEval = 0,
@@ -20,6 +20,7 @@ export let lastEval = 0,
 export function animate(ms) {
   requestAnimationFrame(animate);
   S.clock = ms / 1000;
+  restoreCameraDesired();
   controls.update();
   if (S.cameraMotion) {
     const motion = S.cameraMotion,

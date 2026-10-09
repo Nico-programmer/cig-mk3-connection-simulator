@@ -1,4 +1,4 @@
-# Módulos de la aplicación (versión 1.14)
+# Módulos de la aplicación (versión 1.15)
 
 `dist/app.js` es solo el punto de entrada: carga los módulos de esta carpeta en el orden de arranque original y llama a `buildScenario()` y al bucle de animación.
 
@@ -27,14 +27,14 @@ La versión 1.1 es una reestructuración pura de la 1.0 (antes llamada v16): cad
 | `cables.js` | Cable del arnés. **Se reconstruye en el paso 6.** |
 | `probes.js` | Colocación, movimiento y cables de las puntas. Optimizado en la 1.13 (paso 2). **Los cables se rehacen en el paso 5.** |
 | `bypass.js` | Conectores y cables del bypass. **Paso 7.** |
-| `view.js` | Enfoque de la vista y resguardo de la cámara. **Paso 4.** |
+| `view.js` | Enfoque de la vista y resguardo de la cámara (reconstruido en la 1.15): la cámara va donde la piden los controles y solo se desliza hacia el objetivo si ese punto queda dentro de un sólido. |
 | `meter.js` | Lecturas, display y panel del multímetro. |
 | `input.js` | Ratón, rueda, doble clic y panel de orientación. |
 | `ui.js` | Panel de selección, idioma, teclado y textos. |
 | `screens.js` | Pantalla del MK3. |
 | `hitboxes.js` | Visualización de hitboxes. |
 | `guidance.js` | Anillos y etiquetas de pines de las lecciones. |
-| `loop.js` | Bucle de animación y cambio de tamaño de ventana. |
+| `loop.js` | Bucle de animación y cambio de tamaño de ventana. Llama a `restoreCameraDesired()` antes de `controls.update()`. |
 | `learning-mount.js` | Monta la guía de lecciones (`../learning.js`). |
 | `lessons-bridge.js` | `prepareLesson` y `lessonCheck`: lo que las lecciones leen del banco. |
 
@@ -54,6 +54,13 @@ Fuera de esta carpeta y sin cambios: `../electrical.js`, `../learning.js`, `../g
 - **Cables:** son flexibles y nunca bloquean. Hasta que se conviertan en cuerdas (pasos 5–7), una pieza puede pasar visualmente a través de un cable.
 - **Excepciones (`exempt`):** dos conectores acoplados entre sí no chocan, y la punta no choca con el conector donde mide.
 - **Puntas conectadas:** una punta conectada a un pin de la pieza que se mueve la acompaña y no la bloquea.
-- **Mesa y cámara:** ninguna pieza baja de la mesa (y = −0,115) ni entra en la esfera de la cámara (radio 0,38). La regla de la cámara cambia en el paso 4.
+- **Mesa y cámara:** ninguna pieza baja de la mesa (y = −0,115). Una pieza arrastrada hacia la vista se detiene antes de entrar en la esfera de la cámara (radio 0,38); así la cámara no salta por detrás de lo que tienes en la mano.
+
+## Reglas de la cámara (desde 1.15)
+
+- Los controles de órbita guardan la posición *deseada*; `restoreCameraDesired()` se la devuelve en cada cuadro, así que el zoom nunca se desajusta.
+- Si la posición deseada está libre, la cámara va exactamente ahí, aunque una pieza tape el punto mirado.
+- Si la posición deseada queda dentro de un sólido (agrandado por el radio 0,38 de la cámara), la cámara se desliza por la línea hacia el punto mirado hasta quedar justo afuera. Si el punto mirado está dentro de ese mismo sólido, se coloca del otro lado.
+- Usa un solo rayo por cuadro, con la distancia exacta entre la esfera y cada caja. No avanza por pasos, no se traba y no se teletransporta.
 - **Rotación:** se aplica en incrementos de 3°. Si solo la mesa lo impide, la pieza se eleva para apoyarse; cualquier otro contacto cancela la rotación.
 - **Piezas encimadas al inicio:** si una pieza ya está encimada al empezar a moverla, ese contacto se ignora durante ese movimiento para poder separarla.

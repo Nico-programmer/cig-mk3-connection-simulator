@@ -133,3 +133,15 @@ Results: a connector drag step costs about 2.8 ms (previously about 21 ms) and a
 Tests: `tests/collision.test.mjs` is new. It covers the two fixed bugs, rotation of every part and connector on every axis, sliding, a probe that follows its connector, and 320 seeded random drags and rotations. After each move it checks that no two rigid bodies overlap and nothing enters the table. Run against 1.13 as a control, the same checks fail.
 
 Three assertions in `interaction.test.mjs` described cables as solids; they now assert the flexible-cable rule. Every other existing assertion is unchanged and passes. The scripted 121-step run matches 1.0 in all lesson, meter, circuit and joint state. The only differences are in the keyboard-rotation steps, where 1.0 threw before updating the selection panel.
+
+
+## 1.15: camera guard rebuilt (step 4)
+Changed `app/view.js`; `app/loop.js` now calls `restoreCameraDesired()` before `controls.update()`.
+
+In 1.0 the camera advanced in 0.08 steps from its last safe point, testing every step against every solid. When blocked it stayed there; when trapped it teleported to (12, 13, 22). Writing the clamped position back into the orbit controls also made the zoom distance drift.
+
+In 1.15 the orbit controls keep the desired position. The camera goes exactly there unless that point is inside a solid (widened by the 0.38 camera radius). In that case it slides along the line toward the orbit target until it is just outside. Solids that only hide the target do not move the camera. The guard casts one ray per frame using the exact sphere-to-box distance and costs about 0.1 ms.
+
+A part dragged toward the view still stops before entering the camera sphere, so the camera never jumps behind the part being held.
+
+Tests: `tests/camera.test.mjs` sweeps the orbit through about 15,000 frames around the bench and every connector, with no frame inside a solid and no frame where the camera sticks. It also checks that the opening view and the zoom distance are exact, and that a target inside a solid works without a teleport. Run against 1.14 as a control, the camera stuck on 7,358 frames. The existing camera assertions in `interaction.test.mjs` pass unchanged.

@@ -9,6 +9,7 @@ import { selectedEntity } from "./movement.js";
 import { camera, controls, renderer, scene } from "./scene.js";
 import { updateLeads } from "./probes.js";
 import { updateHarnesses } from "./cables.js";
+import { updateBypassRopes } from "./bypass.js";
 import { paintScreen } from "./screens.js";
 import { V, tr } from "./util.js";
 import { guardCamera, restoreCameraDesired } from "./view.js";
@@ -38,6 +39,7 @@ export function animate(ms) {
   const dt = lastFrameMs === null ? 1 / 60 : Math.max(0, ms - lastFrameMs) / 1000;
   updateLeads(dt);
   updateHarnesses(dt);
+  updateBypassRopes(dt);
   lastFrameMs = ms;
   if (S.drag && S.cameraMotion) {
     ray.setFromCamera(pointer, camera);

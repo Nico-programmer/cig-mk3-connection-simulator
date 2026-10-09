@@ -77,7 +77,7 @@ assert(gap<=cables.HARNESS_REACH+1e-6&&gap>cables.HARNESS_REACH-0.6,`A dragged c
 // ---- cost ----
 app.buildScenario('healthy');frames(400);
 let t=realNow();for(let k=0;k<60;k++){fakeNow+=16;app.animate(fakeNow);}const idle=(realNow()-t)/60;
-assert(idle<1,`Idle frame with all ${harnesses().length} harness cables and both leads asleep: ${idle.toFixed(3)} ms`);
+assert(idle<1.5,`Idle frame with all ${harnesses().length} harness cables, both leads and the bypass cables (since 1.18) asleep: ${idle.toFixed(3)} ms`);
 app.select(lower.ports[1]);
 t=realNow();for(let k=0;k<30;k++){app.moveSelected(app.worldPos(app.workParts[2].ports[1]).add(app.V(0,0,.03)));fakeNow+=16;app.animate(fakeNow);}const drag=(realNow()-t)/30;
 assert(drag<8,`Frame while dragging a harness connector: ${drag.toFixed(3)} ms`);

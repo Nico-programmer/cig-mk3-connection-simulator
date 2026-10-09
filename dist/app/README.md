@@ -1,4 +1,4 @@
-# Módulos de la aplicación (versión 1.17)
+# Módulos de la aplicación (versión 1.18)
 
 `dist/app.js` es solo el punto de entrada: carga los módulos de esta carpeta en el orden de arranque original y llama a `buildScenario()` y al bucle de animación.
 
@@ -27,7 +27,7 @@ La versión 1.1 es una reestructuración pura de la 1.0 (antes llamada v16): cad
 | `cables.js` | Cables de los arneses (1.17): una cuerda `Rope` por arnés que sale por la parte trasera de ambos conectores, con los 4 hilos de color (rojo, negro, naranja, café) entre la carcasa y la funda. Largo `harnessLength`, máximo `HARNESS_MAX`, alcance `HARNESS_REACH`. |
 | `probes.js` | Colocación y movimiento de las puntas (optimizado en la 1.13). Desde la 1.16, sus cables son cuerdas `Rope`: largo `leadLength`, máximo `LEAD_MAX`, alcance `LEAD_REACH`. |
 | `rope.js` | Cable físico reutilizable (1.16): cadena de partículas con gravedad, colisión con el hardware rígido y las bandejas, largo sin estiramiento, reposo automático. Lo usarán también los arneses y el bypass. |
-| `bypass.js` | Conectores y cables del bypass. **Paso 7.** |
+| `bypass.js` | Conectores del bypass y sus cables (1.18): cuerdas `Rope`. Los cables del relé 1 van de la parte trasera de su conector a un clip, siguen pegados al borde frontal de la mesa y desde un segundo clip llegan a una derivación detrás del conector circular del arnés inferior; la derivación baja directo a la mesa, de modo que el cable pasa por debajo del conector y nunca lo rodea ni lo atraviesa. Los del vehículo van del conector al borde de la mesa. El cable negro/blanco lleva su raya pintada. |
 | `view.js` | Enfoque de la vista y resguardo de la cámara (reconstruido en la 1.15): la cámara va donde la piden los controles y solo se desliza hacia el objetivo si ese punto queda dentro de un sólido. |
 | `meter.js` | Lecturas, display y panel del multímetro. |
 | `input.js` | Ratón, rueda, doble clic y panel de orientación. |
@@ -35,7 +35,7 @@ La versión 1.1 es una reestructuración pura de la 1.0 (antes llamada v16): cad
 | `screens.js` | Pantalla del MK3. |
 | `hitboxes.js` | Visualización de hitboxes. |
 | `guidance.js` | Anillos y etiquetas de pines de las lecciones. |
-| `loop.js` | Bucle de animación y cambio de tamaño de ventana. Llama a `restoreCameraDesired()` antes de `controls.update()` y a `updateLeads(dt)` y `updateHarnesses(dt)` en cada cuadro. |
+| `loop.js` | Bucle de animación y cambio de tamaño de ventana. Llama a `restoreCameraDesired()` antes de `controls.update()` y a `updateLeads(dt)`, `updateHarnesses(dt)` y `updateBypassRopes(dt)` en cada cuadro. |
 | `learning-mount.js` | Monta la guía de lecciones (`../learning.js`). |
 | `lessons-bridge.js` | `prepareLesson` y `lessonCheck`: lo que las lecciones leen del banco. |
 
@@ -77,6 +77,6 @@ Fuera de esta carpeta y sin cambios: `../electrical.js`, `../learning.js`, `../g
   - más subpasos cuando un extremo se mueve rápido;
   - si un extremo salta más de 2,5, el cable se tiende de nuevo por arriba y cae;
   - si aparece un valor inválido o el cable se descontrola, se reinicia.
-- **Enganches (desde 1.17):** si el estiramiento se concentra en un solo segmento (una partícula atrapada entre dos sólidos), el cable no suelta más largo. Ese par de partículas deja de chocar durante 0,25 s y el cable se zafa.
+- **Enganches (desde 1.17, ajustado en la 1.18):** si el estiramiento se concentra en un solo segmento (una partícula atrapada entre dos sólidos), el cable primero suelta un poco de largo (5 % cada vez, hasta su máximo) para rodear el obstáculo. Solo si ya está en su máximo, ese par de partículas deja de chocar durante 0,25 s y el cable se zafa.
 - **Espacio local:** la cuerda se dibuja en el espacio local del grupo que la contiene, así que puede colgar dentro de un arnés que se mueve.
-- **Reposo:** cuando nada se mueve más de 0,3 mm por cuadro durante 20 cuadros, el cable se duerme y no consume tiempo.
+- **Reposo:** cuando nada se mueve más de 0,3 mm por cuadro durante 20 cuadros, el cable se duerme. Mientras duerme solo revisa su entorno cada 6 cuadros (0,1 s), salvo que se mueva uno de sus extremos.

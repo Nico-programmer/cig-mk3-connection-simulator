@@ -28,6 +28,7 @@ const STEP = 1 / 120,
   JUMP = 2.5,
   SLEEP_FRAMES = 20, // frames without visible motion before the rope sleeps
   STILL = 5e-3, // largest per-frame particle motion that counts as still (0.3 mm, invisible)
+  IDLE_CHECK = 6, // a sleeping rope checks its surroundings every 6th frame (0.1 s)
   RADIAL = 8;
 
 // Surface under the cables: one continuous height (the mat; the table top is only 2.5 mm
@@ -197,6 +198,8 @@ export class Rope {
       fromEnds = this.lastEnds,
       endTravel = Math.max(ends.a.distanceTo(fromEnds.a), ends.b.distanceTo(fromEnds.b));
     this.lastEnds = { a: ends.a.clone(), b: ends.b.clone() };
+    // Asleep and ends still: look for solids moved onto the cable only every few frames.
+    if (this.sleep >= SLEEP_FRAMES && !endsMoved && (this.idleTick = ((this.idleTick || 0) + 1) % IDLE_CHECK)) return;
     const solids = this.candidates(),
       signature = solids.map(({ obb: o }) => o.center.toArray().map((v) => v.toFixed(4)).join(",")).join(";");
     if (endsMoved || signature !== this.signature) this.sleep = 0;
@@ -268,7 +271,13 @@ export class Rope {
         snag = tense && worst > excess * 0.5;
       this.snag = snag ? (this.snag || 0) + 1 : 0;
       if (this.snag > SNAG_STEPS) {
-        this.ghost[worstAt - 1] = this.ghost[worstAt] = GHOST_STEPS;
+        // First give the cable a little more length so it can go around the solid; only a
+        // cable already at its maximum length slips through (briefly) to free itself.
+        if (this.length < this.maxLength) {
+          this.length = Math.min(this.maxLength, this.length * 1.05);
+          this.paidOut = this.length;
+          seg = this.length / last;
+        } else this.ghost[worstAt - 1] = this.ghost[worstAt] = GHOST_STEPS;
         this.snag = 0;
       }
       this.tension = tense && !snag ? (this.tension || 0) + 1 : 0;

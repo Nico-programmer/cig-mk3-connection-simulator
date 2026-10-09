@@ -200,3 +200,20 @@ The 1.14 cable test in `interaction.test.mjs` reads the rope instead of the old 
 Each probe had a wide finger guard (0.34) next to the tip. On adjacent pins (as close as 0.205 on the circular and 12-pin connectors), the second probe hit the first, so 86 of 348 documented pin pairs could not be measured with both probes at once. The probes in `app/probe-tools.js` are now straight like real meter probes: a thin metal tip (radius 0.03) and a slim square handle (0.15), with nothing sticking out. The overall length and the lead attachment are unchanged.
 
 `tests/probe-pairs.test.mjs` connects both probes on every pair of documented pins of every connector, free and mated: 348 of 348 now succeed with no overlap (1.17: 86 failures). In Chromium, red on circular pin 8 with black on pin 1 both connect, and the voltage lesson's pins 7/8 read 12.0 V. The cost bounds in `rope.test.mjs` now account for the four harness ropes added in 1.17.
+
+
+## 1.18: bypass cables are physical ropes (step 7)
+Fixes a defect reported with a screenshot. The Relay-1 wires (black, and black/white) ended behind the lower harness's circular connector, but their smoothed curve arrived from the front, so they always ran through the connector's pin face. The black/white wire was also drawn as a second, thin tube.
+
+`app/bypass.js` (cables only; the bypass connectors and their mating are unchanged) now builds six ropes:
+- Each relay wire leaves the back of its connector and reaches a clip on the front edge of the table.
+- It is taped along that edge, then from a second clip reaches a branch out of the harness jacket behind the circular connector. The branch drops straight down, so the wire reaches the table behind the connector and passes under it instead of wrapping around it.
+- Each vehicle wire runs from the back of its connector to the table edge.
+- The black/white wire is one cable with its stripe painted along it.
+- These thin cables use little slack, so short runs do not curl.
+
+In `rope.js`:
+- A snagged cable now first pays out a little length (5 % at a time, never beyond its maximum) so it can go around the solid. It slips through only when already at its maximum length; before, a short taut cable could be let through a connector.
+- A sleeping rope checks its surroundings only every 6th frame unless an end moves. The idle frame with all 12 cables asleep costs about 0.9 ms (it would be 1.4 ms without the throttle).
+
+Tests: `tests/bypass.test.mjs` is new. It checks across every scenario and every lesson step that no bypass cable passes through a connector or in front of the circular connector's pin face, and that none goes below the table, loops or stretches. It also runs the bypass lesson with its real actions (open both relay pairs, join the vehicle connectors) and moves the lower harness while the relay wires follow.

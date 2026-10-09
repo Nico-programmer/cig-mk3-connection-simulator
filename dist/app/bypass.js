@@ -1,12 +1,12 @@
-// Relay-1 bypass connectors and their cables.
+// Relay-1 bypass connectors and their cables (cables rebuilt as physical ropes in 1.18).
 import * as T from "three";
-import { curveFor, pathKey, updateTube } from "../drag-performance.js";
-import { box, cable } from "../geometry.js";
+import { box, material } from "../geometry.js";
 import { attach } from "./connection.js";
 import { workParts } from "./scenario.js";
 import { dynamic, scene } from "./scene.js";
 import { forward, setWorldPosition, setWorldQuaternion, worldPos, worldQ } from "./spatial.js";
 import { Q, V } from "./util.js";
+import { Rope, groundAt } from "./rope.js";
 import { S } from "./state.js";
 
 export function buildBypass() {
@@ -55,48 +55,105 @@ export function alignBypass(a, b) {
   setWorldQuaternion(a.group, worldQ(b).multiply(Q(0, Math.PI, 0)));
   setWorldPosition(a.group, worldPos(b).addScaledVector(forward(b), 0.14));
 }
-export let bypassCables = [];
-export function updateBypassCables() {
-  let at = 0;
-  for (let i = 0; i < S.bypassPorts.length; i++) {
-    const p = S.bypassPorts[i],
-      a = worldPos(p).addScaledVector(forward(p), -0.35),
-      b =
-        i % 2
-          ? worldPos(workParts[2].ports[1]).addScaledVector(forward(workParts[2].ports[1]), -0.48)
-          : V(-10.7, 0.1, i < 2 ? -0.4 : 0.8);
-    const path =
-      i % 2
-        ? [a, V(-7, 0.14, 4.1 + i * 0.18), V(3, 0.14, 4.1 + i * 0.18), b]
-        : [
-            a,
-            a
-              .clone()
-              .lerp(b, 0.5)
-              .add(V(0, -0.15, 0.2)),
-            b,
-          ];
-    function sync(points, color, radius, stripe) {
-      const key = pathKey(points);
-      let m = bypassCables[at];
-      if (!m) {
-        m = cable(points, color, radius);
-        scene.add(m);
-        bypassCables[at] = m;
-      } else if (m.userData.pathKey !== key) updateTube(m, curveFor(points));
-      if (!stripe) {
-        m.userData.bypassPort = p;
-      }
-      m.userData.pathKey = key;
-      at++;
+// ---- Bypass cables (1.18): physical ropes, never through a connector ----
+// Relay-1 pair (relayA black, relayB black/white): from the back of each relay connector the
+// cable runs to a clip on the front edge of the table, is taped along that edge, and from a
+// second clip it reaches the lower harness, branching out *behind* its circular connector
+// next to the harness jacket. Vehicle pair (vehicleA, vehicleB): from the back of each
+// connector to the vehicle harness leaving at the table edge.
+const RADIUS = 0.045,
+  BLACK = 0x10191e,
+  TAPE_Y = groundAt() + RADIUS;
+let stripeMaterial = null;
+// Black cable with a white stripe along its length (UV u runs along the cable, v around it).
+function striped() {
+  if (stripeMaterial) return stripeMaterial;
+  const c = document.createElement("canvas");
+  c.width = 4;
+  c.height = 64;
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = "#10191e";
+  ctx.fillRect(0, 0, 4, 64);
+  ctx.fillStyle = "#d8dcde";
+  ctx.fillRect(0, 26, 4, 12);
+  const map = new T.CanvasTexture(c);
+  map.colorSpace = T.SRGBColorSpace;
+  stripeMaterial = material(0xffffff);
+  stripeMaterial.map = map;
+  return stripeMaterial;
+}
+const clips = (i) => ({
+  a: V(-7, TAPE_Y, 4.1 + i * 0.18),
+  b: V(3, TAPE_Y, 4.1 + i * 0.18),
+});
+// Back of a bypass connector (just inside its shell, so the cable emerges from the back face).
+function connectorEnd(port) {
+  port.group.updateWorldMatrix(true, false);
+  return {
+    point: port.group.localToWorld(V(0, 0, -0.25)),
+    dir: V(0, 0, -1).applyQuaternion(port.group.getWorldQuaternion(new T.Quaternion())),
+  };
+}
+// Branch point of a relay wire: out of the harness jacket behind the lower harness's circular
+// connector, dropping straight down, so the wire reaches the table behind the connector and
+// never has to wrap around it.
+function harnessBranch(i) {
+  const port = workParts[2]?.ports[1];
+  port.group.updateWorldMatrix(true, false);
+  const behind = port.group.localToWorld(V(0, 0, -0.78)),
+    side = V(1, 0, 0).applyQuaternion(port.group.getWorldQuaternion(new T.Quaternion())).setY(0).normalize();
+  return { point: behind.addScaledVector(side, i === 1 ? -0.07 : 0.07).add(V(0, -0.12, 0)), dir: V(0, -1, 0) };
+}
+// Thin cables: little slack, so short runs do not curl up into small loops.
+const slack = (extra, max) => (d) => Math.min(max, Math.max(1.2, d * 1.06 + extra));
+export const bypassRopes = [];
+const tapes = [];
+function rope(getEnds, lengthFor, stripe, maxLength) {
+  const r = new Rope({ count: 32, radius: RADIUS, color: BLACK, getEnds, lengthFor, maxLength });
+  if (stripe) r.mesh.material = striped();
+  scene.add(r.mesh);
+  bypassRopes.push(r);
+  return r;
+}
+function ensureBypassCables() {
+  if (bypassRopes.length) return;
+  for (let i = 0; i < 4; i++) {
+    const stripe = i === 3,
+      port = () => S.bypassPorts[i];
+    if (i % 2) {
+      const { a, b } = clips(i);
+      rope(() => {
+        const e = connectorEnd(port());
+        return { a: e.point, aDir: e.dir, b: a.clone(), bDir: V(-1, 0, 0) };
+      }, slack(0.3, 16), stripe, 16);
+      // taped section along the front edge of the table
+      const tape = new T.Mesh(new T.TubeGeometry(new T.LineCurve3(a, b), 64, RADIUS, 8, false), stripe ? striped() : material(BLACK));
+      tape.castShadow = true;
+      tape.raycast = () => {};
+      scene.add(tape);
+      tapes.push(tape);
+      rope(() => {
+        const e = harnessBranch(i);
+        return { a: b.clone(), aDir: V(1, 0, 0), b: e.point, bDir: e.dir };
+      }, (d) => Math.min(20, Math.max(1.5, d * 1.12 + 0.6)), stripe, 20);
+    } else {
+      const anchor = V(-10.7, TAPE_Y, i < 2 ? -0.4 : 0.8);
+      rope(() => {
+        const e = connectorEnd(port());
+        return { a: e.point, aDir: e.dir, b: anchor.clone(), bDir: V(1, 0, 0) };
+      }, slack(0.25, 6), false, 6);
     }
-    if (i === 3)
-      sync(
-        path.map((p) => p.clone().add(V(0, 0.04, 0))),
-        0xbcc1c3,
-        0.012,
-        true,
-      );
-    sync(path, 0x10191e, 0.045, false);
   }
+}
+// Called after anything moves: wake the bypass cables so they follow.
+export function updateBypassCables() {
+  if (!S.bypassPorts.length || !workParts[2]) return;
+  ensureBypassCables();
+  for (const r of bypassRopes) r.wake();
+}
+// Called every frame by the animation loop.
+export function updateBypassRopes(dt) {
+  if (!S.bypassPorts.length || !workParts[2]) return;
+  ensureBypassCables();
+  for (const r of bypassRopes) r.update(dt);
 }

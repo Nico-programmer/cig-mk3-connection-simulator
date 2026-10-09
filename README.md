@@ -6,8 +6,8 @@ Three.js physical connection and diagnostic training simulator. All public asset
 
 - Drag a disconnected connector near its counterpart, then press **Conectar / Connect**. Orientation and insertion are automatic; the circular joint is secured by the same action. There is no automatic snap during drag.
 - Select an attached connector and press **Desconectar / Disconnect**. It is withdrawn to a free position. All three chain joints use these buttons.
-- Drag the red and black probe handles to documented connector pins or device terminals. Cables remain visible at all times. A probe seats on a pin when released over its contact.
-- Click the meter selector for OFF / V DC / continuity. Read the instrument display. Lifting either probe clears the reading; contact positions follow moved components.
+- Drag the red and black probe handles to documented connector pins or device terminals. Cables remain visible at all times. When a probe approaches a pin, press the visible **Conectar punta / Connect probe** button. Releasing the drag does not attach it.
+- Use the visible meter controls for OFF / V DC / continuity. Use the red/black selection buttons and each **Retirar / Remove** button to change contacts. **Ver display / View display** focuses the instrument. Read the instrument display. Removing either probe clears the reading; contact positions follow moved components.
 - Preserve the CAN continuity sequence: end-to-end, screen–middle, EM–middle. No diagnosis, score or action verdict is shown.
 - Camera sensitivity: rotate 1.65, zoom 1.8, pan 1.6. Part drag multiplier 1.35; wheel depth multiplier 0.016.
 - Click **Hitboxes** to show/hide the actual oriented collision boxes. This is a debugging display, not diagnostic feedback.
@@ -42,3 +42,5 @@ Electrical scenarios, both configurable harness segments, reboot behavior, volta
 
 ## v2 validation
 The interaction suite checks button connection/disconnection, probe dragging and electrical contact, assembled clearance, swept movement, camera exclusion and hitbox visualization. Static project browser rendering remains unverified in this runtime.
+
+The complete meter workflow is checked through the actual DOM button handlers: choose voltage, approach two terminals, explicitly connect both probes, read 12.0 V, focus the display, change mode, remove both probes, reconnect to an intact conductor, read continuity and remove again. Pointer approach only offers the connection; it does not perform it.

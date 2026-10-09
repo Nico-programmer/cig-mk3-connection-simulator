@@ -174,3 +174,24 @@ Tests: `tests/rope.test.mjs` is new. It checks:
 - 120 seeded random drags, teleports, resets, scenario changes and lesson changes, checked every frame. In that run there was never a loop, never an invalid value, at most 2.4 % whole-lead stretch, and no penetration once settled.
 
 In `interaction.test.mjs`, the routing-specific "lead clearance" check now lets the rope settle for 3 s before checking it. `refreshProbes` now refreshes the probe's world matrix, which 1.15 only did as a side effect of lead routing.
+
+
+## 1.17: harness cables are physical ropes leaving the back of the connectors (step 6)
+Fixes a defect reported with screenshots. Every harness cable was anchored at the centre of each connector's *mating* face: it came out through the pin face and ran back through the shell. When the other half was mated, the cable ended inside the mated pair, so it looked cut off on the table. Its smoothed curve could also dip below the table and reappear.
+
+`app/cables.js` was rewritten:
+- Each harness is a rope (`rope.js`) that starts at the cable jacket behind both connectors.
+- The four coloured wires (red, black, orange, brown) run from the rear of the shell into the jacket.
+- The cable hangs, rests on the table, and never stretches.
+- Its length follows the connector gap with slack, up to `HARNESS_MAX` (11 units, enough for the reference vehicle in the swap lesson). A dragged connector stops at the reach (`app/movement.js`).
+
+`rope.js` gained two things:
+- Snag release: stretch concentrated in one segment means a particle is caught in a crevice. It no longer pays out cable; that pair slips free instead.
+- Drawing in the local space of a moving parent.
+
+Tests: `tests/harness.test.mjs` is new.
+- 268 settled checks across every scenario and every step of every lesson: cables leave the back of the connectors and never pass through a connector, under the table, in a loop or stretched.
+- The reported case: voltage lesson with the orange connector disconnected. The cable starts behind it and nothing lies in front of its pin face.
+- The reach limit and frame cost: about 0.7 ms idle with every cable asleep, 1.7 ms while dragging a connector.
+
+The 1.14 cable test in `interaction.test.mjs` reads the rope instead of the old curve.

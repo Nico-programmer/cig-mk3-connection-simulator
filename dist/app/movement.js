@@ -1,6 +1,6 @@
 // Moving and rotating the selected part or connector.
 import { updateBypassCables } from "./bypass.js";
-import { refreshCables, updateCable } from "./cables.js";
+import { HARNESS_REACH, jacketEnd, refreshCables, updateCable } from "./cables.js";
 import { moveWithSlide, refreshColliders, rotateChecked } from "./colliders.js";
 import { matingInfo } from "./connection.js";
 import { refreshProbes } from "./probes.js";
@@ -25,9 +25,30 @@ export function moveSelected(desired) {
     ports = selectedPorts(S.selected);
   if (ports.some((p) => p.joint)) return;
   const from = entity.getWorldPosition(V()),
-    delta = desired.clone().sub(from);
+    before = entity.position.clone(),
+    harnessEnd = S.selected.port && S.selected.part.cableGroup && entity === S.selected.port.group,
+    other = harnessEnd && S.selected.part.ports.find((q) => q !== S.selected.port),
+    exitOffset = harnessEnd && jacketEnd(S.selected.port).point.sub(from),
+    beyondReach = () =>
+      harnessEnd &&
+      entity.getWorldPosition(V()).add(exitOffset).distanceTo(jacketEnd(other).point) > HARNESS_REACH + 1e-6;
+  let target = desired.clone();
+  // A harness connector stops where its cable runs out: the cable never stretches.
+  if (harnessEnd) {
+    const anchor = jacketEnd(other).point,
+      exit = target.clone().add(exitOffset);
+    if (exit.distanceTo(anchor) > HARNESS_REACH)
+      target = anchor.add(exit.sub(anchor).setLength(HARNESS_REACH)).sub(exitOffset);
+  }
+  const delta = target.sub(from);
   if (delta.length() > 10) delta.setLength(10);
-  const moved = moveWithSlide(entity, from, delta);
+  let moved = moveWithSlide(entity, from, delta);
+  if (moved && beyondReach()) {
+    // sliding along a surface carried it past the reach: stay put this time
+    entity.position.copy(before);
+    entity.updateWorldMatrix(true, true);
+    moved = false;
+  }
   if (moved) {
     for (const p of ports) {
       if (p.blockMate && p.withdraw) p.withdraw.axial = matingInfo(p, p.blockMate).axial;

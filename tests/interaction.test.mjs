@@ -162,7 +162,7 @@ for(const type of ['meter','up4','circular']){
  target.position.copy(savedPosition);target.quaternion.copy(savedQ);
 }
 // 1.14: cables are flexible and never block a rigid tool; the probe passes a harness cable and stops on the table.
-app.buildScenario('assembly');const cablePoint=app.parts[1].cableGroup.children[0].userData.cableCurve.getPointAt(.5),probe=app.probeTools[0].group;
+app.buildScenario('assembly');const cablePoint=app.parts[1].rope.pos[24].clone(),probe=app.probeTools[0].group;
 probe.quaternion.identity();probe.position.copy(cablePoint).add(app.V(0,1.5,-.6));app.refreshProbes();app.refreshColliders();app.moveProbe(0,cablePoint.clone().add(app.V(0,-1.5,-.6)));
 assert(probe.position.y<cablePoint.y&&probe.position.y>-.115,'Probe passes a harness cable (cables yield) and stops on the table');
 console.log('Actual pointer crossing attempts stopped on meter, 4-pin and circular shells; lead clearance and flexible-cable rule passed.');

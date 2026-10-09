@@ -22,6 +22,8 @@ const STEP = 1 / 120,
   FRICTION = 0.6,
   CONTACT_KEEP = 0.2,
   TENSION_STEPS = 30, // sub-steps of lasting tension before cable pays out (0.25 s)
+  SNAG_STEPS = 12, // sub-steps a single segment may stay caught before it slips free
+  GHOST_STEPS = 30, // sub-steps a freed pair passes through solids (0.25 s)
   MAX_MOVE = 0.3,
   JUMP = 2.5,
   SLEEP_FRAMES = 20, // frames without visible motion before the rope sleeps
@@ -57,6 +59,7 @@ export class Rope {
     this.pos = Array.from({ length: count }, () => new T.Vector3());
     this.prev = Array.from({ length: count }, () => new T.Vector3());
     this.contact = new Uint8Array(count);
+    this.ghost = new Uint8Array(count);
     this.length = 0;
     this.sleep = 0;
     this.paidOut = 0;
@@ -134,6 +137,7 @@ export class Rope {
     return out;
   }
   collide(i, solids) {
+    if (this.ghost[i]) return; // slipping out of a crevice
     const p = this.pos[i],
       r = this.radius;
     let hit = false;
@@ -244,18 +248,37 @@ export class Rope {
         for (let i = 2; i < last - 1; i++) this.collide(i, solids);
       }
       // Gravity stretch was removed by the inextensible pass, so any stretch left now is
-      // geometric: the cable must go around something. Pay out that much cable (bounded).
-      let path = 0;
-      for (let i = 1; i <= last; i++) path += this.pos[i].distanceTo(this.pos[i - 1]);
-      // Only tension that lasts (a quarter second) pays out; a cable hitting an edge as it
-      // falls stretches for an instant and must not grow.
-      this.tension = path > this.length * 1.01 ? (this.tension || 0) + 1 : 0;
+      // geometric. Two cases:
+      //  - spread along the cable: it must go around something -> pay out cable, but only for
+      //    lasting tension (a cable hitting an edge as it falls must not grow);
+      //  - concentrated in one segment: a particle is caught in a crevice between two solids.
+      //    More cable would not help, so let that pair slip free (no collision for 0.25 s).
+      let excess = 0,
+        worst = 0,
+        worstAt = 0;
+      for (let i = 1; i <= last; i++) {
+        const e = this.pos[i].distanceTo(this.pos[i - 1]) - seg;
+        if (e > 0) excess += e;
+        if (e > worst) {
+          worst = e;
+          worstAt = i;
+        }
+      }
+      const tense = excess > this.length * 0.01,
+        snag = tense && worst > excess * 0.5;
+      this.snag = snag ? (this.snag || 0) + 1 : 0;
+      if (this.snag > SNAG_STEPS) {
+        this.ghost[worstAt - 1] = this.ghost[worstAt] = GHOST_STEPS;
+        this.snag = 0;
+      }
+      this.tension = tense && !snag ? (this.tension || 0) + 1 : 0;
       if (this.tension > TENSION_STEPS && this.length < this.maxLength) {
-        this.length = Math.min(this.maxLength, path);
+        this.length = Math.min(this.maxLength, this.length + excess, this.length * 1.1);
         this.paidOut = this.length;
         this.tension = 0;
         seg = this.length / last;
       }
+      for (let i = 0; i <= last; i++) if (this.ghost[i]) this.ghost[i]--;
       // runaway guard
       for (let i = 0; i <= last; i++) {
         const p = this.pos[i];
@@ -312,7 +335,18 @@ export class Rope {
   }
   // Rebuilds the tube buffers in place (same topology as THREE.TubeGeometry).
   render() {
-    this.curve.points.forEach((p, i) => p.copy(this.pos[i]));
+    // Particles live in world space; the mesh may hang under a moving group (a harness root),
+    // so the drawn curve is expressed in that group's local space.
+    const parent = this.mesh?.parent;
+    let toLocal = null;
+    if (parent) {
+      parent.updateWorldMatrix(true, false);
+      toLocal = parent.matrixWorld.clone().invert();
+    }
+    this.curve.points.forEach((p, i) => {
+      p.copy(this.pos[i]);
+      if (toLocal) p.applyMatrix4(toLocal);
+    });
     const geometry = this.mesh?.geometry;
     if (!geometry) return;
     const frames = this.curve.computeFrenetFrames(this.segments, false),

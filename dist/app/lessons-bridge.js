@@ -8,9 +8,10 @@ import { learning } from "./learning-mount.js";
 import { setMeterMode } from "./meter.js";
 import { probeTools } from "./probe-tools.js";
 import { buildScenario, workParts } from "./scenario.js";
-import { staticLabels } from "./scene.js";
+import { camera, controls, staticLabels } from "./scene.js";
 import { setWorldPosition, setWorldQuaternion } from "./spatial.js";
 import { updateLabels } from "./ui.js";
+import { startCamera } from "./view.js";
 import { Q, V, tr } from "./util.js";
 import { S } from "./state.js";
 
@@ -18,6 +19,8 @@ export let lessonEvents = new Set(),
   swapParts = null;
 export function prepareLesson(code, variant = "screen") {
   releaseDrag();
+  // Where the viewer is looking before the bench is rebuilt (buildScenario snaps to the home view).
+  const fromView = { position: camera.position.clone(), target: controls.target.clone() };
   S.lessonMeasurement = null;
   lessonEvents.clear();
   swapParts = null;
@@ -87,6 +90,16 @@ export function prepareLesson(code, variant = "screen") {
   S.circuit.evaluate();
   updateLabels();
   learning.tick();
+  travelHome(fromView);
+}
+// Instead of jumping, glide from the previous view to the bench home view (same 1 s transition).
+function travelHome(fromView) {
+  const home = { position: camera.position.clone(), target: controls.target.clone() };
+  if (fromView.position.distanceTo(home.position) < 1e-6 && fromView.target.distanceTo(home.target) < 1e-6) return;
+  camera.position.copy(fromView.position);
+  controls.target.copy(fromView.target);
+  camera.lookAt(controls.target);
+  startCamera(home.position, home.target);
 }
 export function lessonCheck(check) {
   const [screen, upper, lower, em] = workParts;

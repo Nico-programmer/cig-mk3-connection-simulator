@@ -150,3 +150,6 @@ Tests: `tests/camera.test.mjs` sweeps the orbit through about 15,000 frames arou
 Every camera transition takes 1 s instead of 0.42 s: focusing a connector, returning with Esc, View display, and automatic focus when a connector approaches its mate. The transitions now use smootherstep easing, which starts and stops more gently. The duration is `CAMERA_TRANSITION_MS` in `app/view.js`; the easing is in `app/loop.js`.
 
 From now on, adjustments within a version are numbered 1.x.y.
+
+## 1.15.2: camera glides to the bench when a lesson changes
+Choosing a lesson, repeating it, or crossing into a new example inside a lesson rebuilds the bench. The camera used to jump in one frame to the home view (up to 36.7 units). It now glides from wherever it was to the home view over the same 1 s transition (`travelHome` in `app/lessons-bridge.js`). `buildScenario` is unchanged, so start-up still opens directly on the home view.

@@ -2,20 +2,17 @@
 
 Three.js physical connection and diagnostic training simulator. All public assets are self-contained in `dist/`; no CDN, account service or runtime API is required. Serve that directory with any static HTTP server. Opening `index.html` directly with `file://` is not supported by browser ES modules.
 
-## Use
+## Use (v2 — connection buttons and physical probes)
 
-- Drag a connector or a disconnected component directly in the scene. Drag a cable to move both disconnected ends of its harness.
-- While dragging, use the wheel for depth. The two diagonal on-screen arrows also move a selected component along the camera axis.
-- Use X/Y/Z arrows to orient the selected part. An incorrectly oriented connector stops at its mating surface.
-- Click a physical retaining clip to release it, then withdraw the connector along its mating axis before moving freely.
-- After circular insertion, the arrows turn the collar. Six visual increments represent tightening; these are interaction steps, **not a documented real hardware torque or turn specification**. Reverse them before withdrawal.
-- Drag the background to orbit; right-drag to pan; wheel to zoom. Double-click a connector to inspect it. Escape returns from inspection.
-- Turn the physical key to energize/de-energize the system.
-- Click the multimeter selector to cycle OFF / V DC / continuity. Click two documented pin contacts. Click the meter display to inspect its reading.
-- Continuity of Expansion CAN is tested end-to-end first, then screen–middle, then EM–middle. Passing end-to-end leaves segment tests unnecessary and unavailable. Each CAN conductor has its own test sequence. Ground and supply continuity remain directly measurable.
-- Detach a component, drag it to the removed-parts area, bring its spare from the back of the bench and reconnect it. Faults remain associated with the removed component.
-- Press **I** (or select the instructor label) to inject a scenario. This is setup, not an authenticated instructor role. It resets the scene and does not expose the selected fault in the training view.
-- ES / EN changes the interface language; signal terminology remains in English.
+- Drag a disconnected connector near its counterpart, then press **Conectar / Connect**. Orientation and insertion are automatic; the circular joint is secured by the same action. There is no automatic snap during drag.
+- Select an attached connector and press **Desconectar / Disconnect**. It is withdrawn to a free position. All three chain joints use these buttons.
+- Drag the red and black probe handles to documented connector pins or device terminals. Cables remain visible at all times. A probe seats on a pin when released over its contact.
+- Click the meter selector for OFF / V DC / continuity. Read the instrument display. Lifting either probe clears the reading; contact positions follow moved components.
+- Preserve the CAN continuity sequence: end-to-end, screen–middle, EM–middle. No diagnosis, score or action verdict is shown.
+- Camera sensitivity: rotate 1.65, zoom 1.8, pan 1.6. Part drag multiplier 1.35; wheel depth multiplier 0.016.
+- Click **Hitboxes** to show/hide the actual oriented collision boxes. This is a debugging display, not diagnostic feedback.
+- Background drag orbits; right drag pans; wheel zooms; double-click inspects; Escape returns. Press **I** for scenario setup. ES / EN switches language.
+- Replace parts by disconnecting them, moving them away and connecting their spares.
 
 ## Source authority and accepted decisions
 
@@ -42,3 +39,6 @@ Bypass connects the vehicle-side pair after detaching it from the Relay-1 pair. 
 ## Validation boundary
 
 Electrical scenarios, both configurable harness segments, reboot behavior, voltage polarity, fault isolation, connection/withdrawal, incorrect orientation, swept collision, camera exclusion and meter order have computational checks. Interaction tests use the actual Three.js geometry and application handlers with a mocked DOM and renderer; they **do not render WebGL**. Browser visual review, real pointer/touch usability and WebMCP registration in a supporting browser still require an interactive browser session.
+
+## v2 validation
+The interaction suite checks button connection/disconnection, probe dragging and electrical contact, assembled clearance, swept movement, camera exclusion and hitbox visualization. Static project browser rendering remains unverified in this runtime.

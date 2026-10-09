@@ -1,13 +1,9 @@
 import assert from 'node:assert/strict';
-import {LearningFlow,lessons} from '../dist/learning.js';
-const flow=new LearningFlow();
-assert.deepEqual(flow.steps.filter(s=>['end','upper','lower'].includes(s.id)).map(s=>s.id),['end','upper','lower']);
-flow.observe({mode:'voltage',segment:0,signal:'lo',sameSignal:true,passes:true});assert.deepEqual(flow.end,{});
-flow.observe({mode:'continuity',segment:0,signal:'lo',sameSignal:false,passes:true});assert.deepEqual(flow.end,{});
-flow.observe({mode:'continuity',segment:0,signal:'lo',sameSignal:true,passes:true});assert.equal(flow.steps.length,12);
-flow.observe({mode:'continuity',segment:0,signal:'hi',sameSignal:true,passes:false});assert.equal(flow.steps.length,12);
-flow.observe({mode:'continuity',segment:0,signal:'hi',sameSignal:true,passes:true});assert.equal(flow.steps.length,10);
-flow.setMode('practice');flow.reset();assert.equal(flow.mode,'practice');assert.equal(flow.steps.length,12);
-for(const lesson of lessons){assert.ok(lesson.body.es.length>100&&lesson.body.en.length>100);assert.doesNotMatch(JSON.stringify(lesson),/\bF(?:[1-9]|1[0-2])\b/);}
-assert.throws(()=>flow.setMode('wrong'));
-console.log('Learning order, continuity skip, reset, translations and scenario-independent content passed.');
+import fs from 'node:fs';
+import {lessons} from '../dist/learning.js';
+assert.deepEqual(lessons.map(l=>l.id),['assembly','led','voltage','seating','wires','continuity','swap','bypass']);
+for(const l of lessons){assert.ok(l.title.es&&l.title.en&&l.scenario&&l.steps.length);for(const step of l.steps){assert.ok(step.text.es&&step.text.en&&step.check);assert.ok(step.text.es.length<390,'Compact instruction '+step.id);}}
+const html=fs.readFileSync(new URL('../dist/index.html',import.meta.url),'utf8'),app=fs.readFileSync(new URL('../dist/app.js',import.meta.url),'utf8');
+assert.doesNotMatch(html,/<dialog|instructor|practiceMode|trainingModes/);assert.doesNotMatch(app,/openInstructor|set_training_scenario|Math.random/);
+const c=lessons.find(l=>l.id==='continuity').steps.map(s=>s.id);assert.deepEqual(c,['off','endLo','endHi','skip','failed','upper','lower','isolate']);
+console.log('Eight ordered bilingual lessons, compact content, continuity order and removed instructor/evaluator passed.');

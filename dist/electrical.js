@@ -15,9 +15,10 @@ export class Circuit{
  this.g=g;return g;}
  connected(a,b){if(a===b)return true;const seen=new Set([a]),queue=[a];for(let i=0;i<queue.length;i++){for(const x of this.g.get(queue[i])||[]){if(x===b)return true;if(!seen.has(x)){seen.add(x);queue.push(x);}}}return false;}
  source(){const p=this.powerUpper?.ports.find(p=>p.kind==='up4');return p?{pos:this.powerUpper.fault==='F1'?node(this.powerUpper.ports.find(p=>p.kind==='orange'),2):node(p,1),gnd:node(p,2)}:null;}
- voltage(a,b){this.graph();const s=this.source();if(!this.key||!s)return 0;const level=x=>this.connected(x,s.pos)?12:this.connected(x,s.gnd)?0:null;const va=level(a),vb=level(b);return va===null||vb===null?0:va-vb;}
+ sources(){return this.supplyUppers?.length?this.supplyUppers.map(upper=>({pos:node(upper.ports.find(p=>p.kind==='up4'),1),gnd:node(upper.ports.find(p=>p.kind==='up4'),2)})):[this.source()].filter(Boolean);}
+ voltage(a,b){this.graph();const sources=this.sources();if(!this.key||!sources.length)return 0;const level=x=>sources.some(s=>this.connected(x,s.pos))?12:sources.some(s=>this.connected(x,s.gnd))?0:null;const va=level(a),vb=level(b);return va===null||vb===null?0:va-vb;}
  continuity(a,b){this.graph();return this.connected(a,b);}
- evaluate(){this.graph();const src=this.source(),out={screens:{},ems:{}};const powered=p=>{const sig=SIGNALS[p.kind];return !!(this.key&&src&&this.connected(node(p,sig.pos),src.pos)&&this.connected(node(p,sig.gnd),src.gnd));};
+ evaluate(){this.graph();const sources=this.sources(),out={screens:{},ems:{}};const powered=p=>{const sig=SIGNALS[p.kind];return !!(this.key&&sources.some(src=>this.connected(node(p,sig.pos),src.pos)&&this.connected(node(p,sig.gnd),src.gnd)));};
  for(const em of this.parts.filter(p=>p.type==='em')){const p=em.ports[0],on=powered(p);if(on&&!this.previousPower.get(em.id)&&em.fault==='F2'&&em.hasBeenPowered)em.fault=null;if(on)em.hasBeenPowered=true;this.previousPower.set(em.id,on);out.ems[em.id]=!on?'off':['F2','F3'].includes(em.fault)?'steady':'blink';}
  for(const scr of this.parts.filter(p=>p.type==='screen')){const p=scr.ports[0];if(!powered(p)){out.screens[scr.id]='off';continue;}let communicates=false;for(const em of this.parts.filter(p=>p.type==='em')){const ep=em.ports[0];if(out.ems[em.id]==='blink'&&this.connected(node(p,9),node(ep,1))&&this.connected(node(p,10),node(ep,2)))communicates=true;}out.screens[scr.id]=communicates&&scr.fault!=='F9'?'normal':'spinner';}return out;}
 }

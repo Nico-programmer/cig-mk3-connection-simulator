@@ -57,3 +57,17 @@ The updated specification's “Interfaz y modos” is implemented by `dist/learn
 Practice hides teaching text, the guide, and the meter's “NEXT” instruction. Controls and instrument readings remain available. Switching modes does not reset hardware or change the instructor-selected fault or segment. The guide receives no scenario ID or part fault and never names the active faulty component. This update changes instructional display and observes completed meter measurements; cursor, probe interaction, collision and camera mechanics are unchanged from v5.
 
 Run all checks with `node --test tests/circuit.test.mjs tests/interaction.test.mjs tests/learning.test.mjs`. New checks cover mode transitions, preserved scenario, English/Spanish lessons, measurement-based skipping and reset. Computational interaction checks do not render WebGL.
+
+
+## v7: learning-only lesson edition
+This edition opens a compact eight-item lesson menu, in the user-requested order: assembly, LED, supply voltage, seating, orange/brown wiring, continuity, two-way display swap and bypass. The instructor dialog, mode selector, keyboard instructor shortcut and agent scenario-injection tool are removed. There is no evaluator or random selection. Internal circuit cases are deterministic examples chosen by each lesson, not user-configurable assessments.
+
+Each lesson resets its bench, presents one short bilingual instruction and enables Next after the required scene action. Return to menu and Repeat lesson remain available. The intact continuity example ends after both end-to-end conductors pass; the interrupted example begins separately and tests end-to-end, upper then lower. Supply examples produce actual 12 V and 0 V readings. The LED lesson demonstrates unpowered, blinking and frozen states with the accepted restart-first behavior.
+
+Swap uses two electrically separate chains at the same documented 12 V. The user physically exchanges both displays; symptom outcomes derive from the conductor graph and the connected screen/EM. A compact selector repeats either the screen-fault or vehicle-fault example. This is a tabletop representation of two vehicles, not a simulated drivable vehicle. Individual terminal pulling/repinning remains outside the implemented mechanics and is stated in the wiring lesson. The existing connection button completes securing/thread tightening.
+
+The troubleshooting PDF supplies the diagnostic order. The updated simulator specification and accepted user clarification retain restart before replacement for steady green, despite the older troubleshooting wording. No short-circuit or high-resistance scenarios are added.
+
+Bypass now allows the two compatible vehicle connectors, which share a display group, to mate. Its moving connector excludes its own trailing cable from collision checks; unrelated bodies still collide. Source models and the other existing interaction mechanics are preserved.
+
+Validation uses actual application button, selection and raycast handlers with a mocked renderer. It exercises all eight instructional procedures, both swap outcomes, bilingual menu, action gating, clean repetition, electrical readings and separate bypass logging. WebGL browser rendering remains unverified because this plain static project has no compatible managed preview server.

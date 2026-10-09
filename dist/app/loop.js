@@ -8,6 +8,7 @@ import { drawMeter, refreshVoltageReading } from "./meter.js";
 import { selectedEntity } from "./movement.js";
 import { camera, controls, renderer, scene } from "./scene.js";
 import { updateLeads } from "./probes.js";
+import { beginRopeFrame } from "./rope.js";
 import { updateHarnesses } from "./cables.js";
 import { updateBypassRopes } from "./bypass.js";
 import { paintScreen } from "./screens.js";
@@ -37,6 +38,7 @@ export function animate(ms) {
   }
   guardCamera();
   const dt = lastFrameMs === null ? 1 / 60 : Math.max(0, ms - lastFrameMs) / 1000;
+  beginRopeFrame();
   updateLeads(dt);
   updateHarnesses(dt);
   updateBypassRopes(dt);

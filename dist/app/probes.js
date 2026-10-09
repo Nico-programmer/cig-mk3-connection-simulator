@@ -3,7 +3,7 @@ import * as T from "three";
 import { segmentHitsSolid } from "../collision.js";
 import { cachedCollider as colliderOf } from "../drag-performance.js";
 import { PINS } from "../electrical.js";
-import { meter } from "./bench.js";
+import { meter, plugs, PLUG_EXIT } from "./bench.js";
 import { refreshColliders } from "./colliders.js";
 import { hits } from "./input.js";
 import { drawMeter, takeProbe, updateMeterControls } from "./meter.js";
@@ -102,11 +102,13 @@ export const LEAD_MAX = 24,
 export const leadLength = (d) => Math.min(LEAD_MAX, Math.max(3.5, d * LEAD_SLACK + LEAD_EXTRA));
 export function leadEnds(index) {
   const g = probeTools[index].group;
-  meter.updateWorldMatrix(true, false);
   g.updateWorldMatrix(true, false);
+  const plug = plugs[index];
+  plug.updateWorldMatrix(true, false);
   return {
-    a: meter.localToWorld(V(index ? -0.63 : 0.63, -1.44, 0.4)),
-    aDir: V(0, 0, 1).applyQuaternion(meter.getWorldQuaternion(new T.Quaternion())),
+    // out of the end of the right-angle plug, along the face toward the lower left corner
+    a: plug.localToWorld(PLUG_EXIT.clone()),
+    aDir: V(0, -1, -0.1).normalize().applyQuaternion(plug.getWorldQuaternion(new T.Quaternion())),
     b: g.localToWorld(V(0, 0, 1.1)),
     bDir: V(0, 0, 1).applyQuaternion(g.getWorldQuaternion(new T.Quaternion())),
   };
@@ -121,7 +123,7 @@ function ensureLead(index) {
     getEnds: () => leadEnds(index),
     lengthFor: leadLength,
     maxLength: LEAD_MAX,
-    ignores: (m) => isDescendant(m, tool.group),
+    ignores: (m) => isDescendant(m, tool.group) || m.userData.leadPlug === index,
   });
   tool.lead.mesh.userData.probeLead = index;
   probeWires.add(tool.lead.mesh);

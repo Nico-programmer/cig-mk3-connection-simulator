@@ -1,4 +1,4 @@
-# Módulos de la aplicación (versión 1.18)
+# Módulos de la aplicación (versión 1.18.1)
 
 `dist/app.js` es solo el punto de entrada: carga los módulos de esta carpeta en el orden de arranque original y llama a `buildScenario()` y al bucle de animación.
 
@@ -14,7 +14,7 @@ La versión 1.1 es una reestructuración pura de la 1.0 (antes llamada v16): cad
 | `state.js` | Estado compartido `S`. Contiene solo lo que más de un módulo reasigna. Cada campo indica quién lo escribe. |
 | `util.js` | `$`, `V`, `Q` y `tr` (texto ES/EN). |
 | `scene.js` | Escena, cámara, renderer, controles de órbita, luces, mesa y rótulos del piso. |
-| `bench.js` | Llave, cuerpo y display del multímetro, avisos del piso. |
+| `bench.js` | Llave, cuerpo y display del multímetro, avisos del piso. Desde la 1.18.1, una clavija banana en ángulo recto en cada borne (`plugs`, `PLUG_EXIT`): entra al borne, gira 90° y corre sobre la cara hacia la esquina inferior izquierda; su cuerpo es sólido. |
 | `probe-tools.js` | Construcción de las dos puntas. |
 | `overlays.js` | Grupos de hitboxes y de anillos de pines. |
 | `names.js` | Nombres de piezas y conectores. |
@@ -25,9 +25,9 @@ La versión 1.1 es una reestructuración pura de la 1.0 (antes llamada v16): cad
 | `movement.js` | Mover y rotar la selección (usa `colliders.js`). Un conector de arnés se detiene al alcance de su cable. |
 | `colliders.js` | Colisión del hardware rígido (reconstruido en la 1.14). Las excepciones viven solo en `exempt()`. Movimiento con deslizamiento (`moveWithSlide`) y rotación comprobada (`rotateChecked`). |
 | `cables.js` | Cables de los arneses (1.17): una cuerda `Rope` por arnés que sale por la parte trasera de ambos conectores, con los 4 hilos de color (rojo, negro, naranja, café) entre la carcasa y la funda. Largo `harnessLength`, máximo `HARNESS_MAX`, alcance `HARNESS_REACH`. |
-| `probes.js` | Colocación y movimiento de las puntas (optimizado en la 1.13). Desde la 1.16, sus cables son cuerdas `Rope`: largo `leadLength`, máximo `LEAD_MAX`, alcance `LEAD_REACH`. |
+| `probes.js` | Colocación y movimiento de las puntas (optimizado en la 1.13). Desde la 1.16, sus cables son cuerdas `Rope`: largo `leadLength`, máximo `LEAD_MAX`, alcance `LEAD_REACH`. Desde la 1.18.1 el cable sale del extremo de la clavija en ángulo, al ras de la cara, y cae por el borde: ya no forma un arco sobre los bornes. |
 | `rope.js` | Cable físico reutilizable (1.16): cadena de partículas con gravedad, colisión con el hardware rígido y las bandejas, largo sin estiramiento, reposo automático. Lo usarán también los arneses y el bypass. |
-| `bypass.js` | Conectores del bypass y sus cables (1.18): cuerdas `Rope`. Los cables del relé 1 van de la parte trasera de su conector a un clip, siguen pegados al borde frontal de la mesa y desde un segundo clip llegan a una derivación detrás del conector circular del arnés inferior; la derivación baja directo a la mesa, de modo que el cable pasa por debajo del conector y nunca lo rodea ni lo atraviesa. Los del vehículo van del conector al borde de la mesa. El cable negro/blanco lleva su raya pintada. |
+| `bypass.js` | Conectores del bypass y sus cables (1.18): cuerdas `Rope`. Los cables del relé 1 van de la parte trasera de su conector a un clip, siguen pegados al borde frontal de la mesa y desde un segundo clip llegan a una derivación detrás del conector circular del arnés inferior; la derivación baja directo a la mesa, de modo que el cable pasa por debajo del conector y nunca lo rodea ni lo atraviesa. Desde la 1.18.1 estos cables se tienden a ras de mesa (no en arco por arriba) al cambiar de escenario o lección, así nunca caen colgados sobre el circular. Los del vehículo van del conector al borde de la mesa. El cable negro/blanco lleva su raya pintada. |
 | `view.js` | Enfoque de la vista y resguardo de la cámara (reconstruido en la 1.15): la cámara va donde la piden los controles y solo se desliza hacia el objetivo si ese punto queda dentro de un sólido. |
 | `meter.js` | Lecturas, display y panel del multímetro. |
 | `input.js` | Ratón, rueda, doble clic y panel de orientación. |
@@ -80,3 +80,13 @@ Fuera de esta carpeta y sin cambios: `../electrical.js`, `../learning.js`, `../g
 - **Enganches (desde 1.17, ajustado en la 1.18):** si el estiramiento se concentra en un solo segmento (una partícula atrapada entre dos sólidos), el cable primero suelta un poco de largo (5 % cada vez, hasta su máximo) para rodear el obstáculo. Solo si ya está en su máximo, ese par de partículas deja de chocar durante 0,25 s y el cable se zafa.
 - **Espacio local:** la cuerda se dibuja en el espacio local del grupo que la contiene, así que puede colgar dentro de un arnés que se mueve.
 - **Reposo:** cuando nada se mueve más de 0,3 mm por cuadro durante 20 cuadros, el cable se duerme. Mientras duerme solo revisa su entorno cada 6 cuadros (0,1 s), salvo que se mueva uno de sus extremos.
+
+## Contacto entre cables (desde 1.18.1)
+
+- **Registro:** toda cuerda y los tramos encintados del bypass (`registerStaticCable`) se registran. `beginRopeFrame()` (en el bucle) marca las cajas como viejas; se recalculan solo si alguna cuerda está despierta.
+- **Candidatos:** una cuerda que se mueve lista una vez por cuadro, por bloques de 8 segmentos, los segmentos de los demás cables cuya caja la alcanza. En cada subpaso mantiene sus segmentos a la suma de los radios de esos segmentos: los cables quedan uno sobre otro o al lado, nunca atravesados.
+- **Empuje inelástico:** como con un sólido, el empuje no se vuelve velocidad.
+- **Despertar:** una cuerda dormida solo se despierta si la empujan a fondo (un tercio del grosor combinado). El simple apoyo no la despierta, así dos cables apoyados también se duermen.
+- **Largo extra:** el largo soltado por un obstáculo se devuelve tras 1 s sin tensión y nunca pasa de 1,6 × el nominal. Los roces de un solo segmento no lo retienen.
+- **Mesa:** un cable apoyado justo sobre la mesa cuenta como contacto (conserva su fricción). Los barridos de restricciones alternan sentido y la rigidez a la flexión no actúa donde el cable está apoyado; así un cable largo sobre la mesa no se arrastra solo.
+- **Tendido inicial:** con `floorLayout` (cables del bypass) la cuerda se tiende bajando de cada extremo y a ras de mesa entre ambos.

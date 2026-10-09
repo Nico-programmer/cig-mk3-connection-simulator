@@ -217,3 +217,21 @@ In `rope.js`:
 - A sleeping rope checks its surroundings only every 6th frame unless an end moves. The idle frame with all 12 cables asleep costs about 0.9 ms (it would be 1.4 ms without the throttle).
 
 Tests: `tests/bypass.test.mjs` is new. It checks across every scenario and every lesson step that no bypass cable passes through a connector or in front of the circular connector's pin face, and that none goes below the table, loops or stretches. It also runs the bypass lesson with its real actions (open both relay pairs, join the vehicle connectors) and moves the lower harness while the relay wires follow.
+
+## 1.18.1: cables rest on each other; meter leads leave through right-angle plugs
+Fixes two defects reported with screenshots: the red lead passed through the black bypass cables (and, in general, any cable could pass through any other), and each meter lead rose out of its jack in a tall arch and hooked back over the meter.
+
+Cable-to-cable contact (`rope.js`):
+- Every rope and the taped bypass runs are registered. Once per frame each moving rope lists, per chunk of 8 segments, the segments of the other cables whose boxes reach it; each sub-step it keeps its segments at least the sum of both radii from them. Cables lie on and beside each other.
+- The push is inelastic (like contact with a solid), so two cables pressed together do not shove each other across the table. A sleeping cable is woken only when pushed deep (a third of the combined thickness), so cables resting against each other still go to sleep.
+- Cost: idle unchanged (about 0.25 ms); dragging a probe across the bench cables about 3 ms.
+
+Fixes in `rope.js` found while testing contact:
+- Extra cable paid out for an obstacle is given back after 1 s without tension, and a payout never exceeds 1.6 × the nominal length; payouts could otherwise accumulate into loose loops. Brief one-segment blips do not hold the extra cable out.
+- A cable resting exactly on the table now counts as touching it (it kept no friction before).
+- Constraint sweeps alternate direction, and bending is not enforced where the cable rests on something. Before, slack cable on the table crept along its own length forever.
+- Bypass ropes are laid out along the table (down from each end, along the table, up to the other end) instead of in an arc above, so after a scenario or lesson change they never land draped over the circular connector.
+
+Meter leads (`bench.js`, `probes.js`): each jack now holds a right-angle banana plug, as on real test leads. The plug enters the jack, turns 90° and runs along the face toward the meter's lower-left corner, so the lead leaves level with the face just past the lower edge and simply drops. The plug bodies are rigid solids, so the other lead lies against them. Lead length and reach are unchanged.
+
+Tests: `tests/cable-contact.test.mjs` is new. Across 61 settled states (every scenario and lesson step) no two cables overlap by more than 0.02, and the red lead laid across the bypass and harness cables at four places rests on them. In `rope.test.mjs` the active-frame budget is now 6 ms (it adds cable contact), and a single-frame lead stretch of up to 25 % is allowed when another probe is swept 3 units through it in one frame, provided it recovers on the next frame.

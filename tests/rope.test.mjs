@@ -20,7 +20,7 @@ const assert=(ok,msg)=>{if(!ok)throw new Error(msg);console.log('PASS',msg);};
 const check=(ok,msg)=>{if(!ok)throw new Error(msg);};
 const frame=()=>{fakeNow+=16;app.animate(fakeNow);};
 // ---- invariants of one lead ----
-let worst={loop:0,stretch:0,depth:0};const inside=[0,0],lastDepth=[0,0],lastStretch=[0,0],lastTotal=[1,1];let grace=0;
+let worst={loop:0,stretch:0,depth:0};const inside=[0,0],overStretch=[0,0],lastDepth=[0,0],lastStretch=[0,0],lastTotal=[1,1];let grace=0;
 function inspect(i,label){
   const tool=app.probeTools[i],L=tool.lead,P=L.pos,e=probes.leadEnds(i),seg=L.length/(P.length-1);
   for(const p of P)check(Number.isFinite(p.x+p.y+p.z),`${label}: lead ${i} has an invalid point`);
@@ -40,7 +40,11 @@ function inspect(i,label){
   // 0.05 settled) only guards against numerical blow-ups.
   const gap=(stretch-1)*seg;worst.gap=Math.max(worst.gap||0,gap);lastTotal[i]=total/L.length;
   if(grace>0)return; // the world just jumped (scenario, lesson, reset, teleport): loops and NaN only
-  check(total<=L.length*1.10,`${label}: lead ${i} stretched as a whole (${(total/L.length).toFixed(3)})`);
+  // A solid swept a long way in one frame (a 3-unit drag of the other probe) can shove a lead
+  // for that single frame (1.18.1, since cables also rest on each other); it must recover on
+  // the very next frame and never exceed 25 %.
+  overStretch[i]=total>L.length*1.10?overStretch[i]+1:0;
+  check(total<=L.length*1.25&&overStretch[i]<=1,`${label}: lead ${i} stretched as a whole (${(total/L.length).toFixed(3)})`);
   check(gap<0.3,`${label}: lead ${i} segment opened ${gap.toFixed(3)} beyond its length`);
   lastStretch[i]=gap;
   // A fast move can graze a solid for a moment; it must clear within 4 frames (0.07 s) and never go deep.
@@ -66,7 +70,7 @@ assert(fixturePlace(0,'orange',9)&&fixturePlace(1,'circular',1),'Both probes con
 t=realNow();for(let k=0;k<30;k++)frame();const active=(realNow()-t)/30;run(30,'measuring');
 run(300,'measuring settle');
 assert(app.meterResult&&app.meterResult!=='—','The meter reads with both leads simulated ('+app.meterResult+')');
-assert(active<5,`Whole frame (render mocked) with both leads moving and the harness cables settling after a lesson change: ${active.toFixed(3)} ms`);
+assert(active<6,`Whole frame (render mocked) with both leads moving, the harness cables settling after a lesson change and cable-to-cable contact (1.18.1, budget 6 ms): ${active.toFixed(3)} ms`);
 // ---- reach limit ----
 els.removeProbe0.onclick();run(30,'removed');
 const tool=app.probeTools[0],far=probes.leadEnds(0).a.clone().add(app.V(-30,1.5,-14));

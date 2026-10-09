@@ -6,7 +6,7 @@ import { workParts } from "./scenario.js";
 import { dynamic, scene } from "./scene.js";
 import { forward, setWorldPosition, setWorldQuaternion, worldPos, worldQ } from "./spatial.js";
 import { Q, V } from "./util.js";
-import { Rope, groundAt } from "./rope.js";
+import { Rope, groundAt, registerStaticCable } from "./rope.js";
 import { S } from "./state.js";
 
 export function buildBypass() {
@@ -109,7 +109,7 @@ const slack = (extra, max) => (d) => Math.min(max, Math.max(1.2, d * 1.06 + extr
 export const bypassRopes = [];
 const tapes = [];
 function rope(getEnds, lengthFor, stripe, maxLength) {
-  const r = new Rope({ count: 32, radius: RADIUS, color: BLACK, getEnds, lengthFor, maxLength });
+  const r = new Rope({ count: 32, radius: RADIUS, color: BLACK, getEnds, lengthFor, maxLength, floorLayout: true });
   if (stripe) r.mesh.material = striped();
   scene.add(r.mesh);
   bypassRopes.push(r);
@@ -132,6 +132,7 @@ function ensureBypassCables() {
       tape.raycast = () => {};
       scene.add(tape);
       tapes.push(tape);
+      registerStaticCable(a, b, RADIUS);
       rope(() => {
         const e = harnessBranch(i);
         return { a: b.clone(), aDir: V(1, 0, 0), b: e.point, bDir: e.dir };

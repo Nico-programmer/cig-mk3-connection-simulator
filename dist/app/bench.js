@@ -65,6 +65,38 @@ label(meter, "COM                  V / Ω", 1.8, 0.21, V(0, -1.19, 0.31), {
   size: 29,
 });
 for (const x of [-0.63, 0.63]) cylinder(meter, 0.11, 0.06, x < 0 ? 0x0d171e : 0xc74935, x, -1.44, 0.32);
+// Banana plugs (1.18.1): right-angle plugs, as on real test leads. Each enters its jack,
+// turns 90° and runs along the face toward the meter's lower left corner (where the bench
+// and the probes are), so the lead leaves level with the face just past the lower edge and
+// simply drops: it never arches up over the jacks and the two leads never cross.
+// The two plug bodies are rigid solids (tagged `leadPlug`), so the other lead lies on them.
+// plugs[i] is the plug of lead i (0 = red, V/Ω; 1 = black, COM); its local -y is the exit.
+export const PLUG_EXIT = V(0, -0.56, 0.52), // where the lead leaves the boot (plug-local)
+  plugs = [0.63, -0.63].map((x, lead) => {
+    const color = lead ? 0x151b20 : 0xd84132,
+      g = new T.Group();
+    g.position.set(x, -1.44, 0);
+    g.rotation.z = -0.694; // local -y toward (-0.64, -0.77) on the face
+    meter.add(g);
+    const stem = cylinder(g, 0.09, 0.26, color, 0, 0, 0.45); // into the jack
+    stem.userData.leadPlug = lead;
+    const elbow = new T.Mesh(new T.SphereGeometry(0.09, 20, 14), stem.material);
+    elbow.position.set(0, 0, 0.58);
+    elbow.castShadow = true;
+    g.add(elbow);
+    const body = cylinder(g, 0.085, 0.38, color, 0, -0.2, 0.55); // along the face
+    body.rotation.x = 0;
+    body.userData.leadPlug = lead;
+    for (const [r, len, y] of [
+      [0.07, 0.1, -0.44],
+      [0.05, 0.06, -0.52],
+    ]) {
+      const boot = cylinder(g, r, len, color, 0, y, 0.53);
+      boot.rotation.x = 0;
+      delete boot.userData.solid;
+    }
+    return g;
+  });
 export const meterCaption = floorLabel("MULTÍMETRO", "MULTIMETER", V(6.7, 0.02, 6.4), 3, 0.35);
 export const notice = floorLabel(
   "10–30 V DC · >30 V: usar convertidor",

@@ -71,3 +71,12 @@ The troubleshooting PDF supplies the diagnostic order. The updated simulator spe
 Bypass now allows the two compatible vehicle connectors, which share a display group, to mate. Its moving connector excludes its own trailing cable from collision checks; unrelated bodies still collide. Source models and the other existing interaction mechanics are preserved.
 
 Validation uses actual application button, selection and raycast handlers with a mocked renderer. It exercises all eight instructional procedures, both swap outcomes, bilingual menu, action gating, clean repetition, electrical readings and separate bypass logging. WebGL browser rendering remains unverified because this plain static project has no compatible managed preview server.
+
+## v8: lesson navigation and measurement-point visibility
+Next/Finish no longer depends on completing hardware actions. The compact guide allows forward/back navigation, retains the correct counter, restores deterministic example setups when crossing example boundaries, and repeats any lesson from the beginning. This is guided learning, not assessment.
+
+The current lesson step has explicit documented pin targets in `pinTargets`. Non-colliding rings and screen-space number labels mark those actual pin coordinates and move with their connectors. Voltage uses the incoming circular connector's 7/8 pair, equivalent to the EM supply contacts. Red/COM tones distinguish the voltage pair. Continuity highlights the exact documented endpoints; wire inspection also marks pin 12 as the distinct seat input where mentioned. Marker graphics render above housing geometry and do not take pointer input or change electrical contacts.
+
+Each probe displays a floating number/signal label when approaching a valid pin or while connected. It uses the same nearest-pin selection as Connect probe, including during dragging. Returning to the lesson menu clears instructional markers.
+
+Checks traverse every step of all eight lessons without performing physical actions, exercise Previous/Next/Repeat, and check pin target changes, marker movement, actual proximity identification, correspondence with the connection target and menu cleanup. Existing physical/electrical workflows still pass; these are computational tests without WebGL rendering.

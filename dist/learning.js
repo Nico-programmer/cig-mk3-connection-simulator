@@ -62,7 +62,7 @@ s('result','El vehículo puede operar sin interactuar con Fleet mientras llega e
 ];
 export function mountLearning({getLanguage,prepare,getState}){
  const $=id=>document.getElementById(id);let active=null,index=0,variant='screen',prepared=null;
- const api={get active(){return active;},get index(){return index;},get variant(){return variant;},flow:{mode:'learning'},observe(){},reset(){},start(id,value='screen'){active=lessons.find(l=>l.id===id);if(!active)throw new Error('Unknown lesson');index=0;variant=value;prepared=active.scenario;prepare(prepared,variant);render();},menu(){active=null;render();},tick(){if(active)$('lessonNext').disabled=!getState(active.steps[index].check);},render};
+ const api={get active(){return active;},get index(){return index;},get variant(){return variant;},flow:{mode:'learning'},observe(){},reset(){},start(id,value='screen'){active=lessons.find(l=>l.id===id);if(!active)throw new Error('Unknown lesson');index=0;variant=value;prepared=active.scenario;prepare(prepared,variant);render();},menu(){active=null;render();},tick(){if(active)$('lessonNext').disabled=false;},render};
  function enter(){const code=active.steps.slice(0,index+1).filter(s=>s.setup).at(-1)?.setup||active.scenario;if(code!==prepared){prepared=code;prepare(code,variant);}render();}
  function render(){const lang=getLanguage(),es=lang==='es';$('lessonMenu').hidden=!!active;$('learningGuide').hidden=!active;$('menuTitle').textContent=es?'¿Qué quieres aprender?':'What would you like to learn?';$('menuIntro').textContent=es?'Elige una lección. Cada una prepara sus piezas y mediciones.':'Choose a lesson. Each prepares its parts and measurements.';
  $('lessonMenuItems').replaceChildren(...lessons.map((l,i)=>{const b=document.createElement('button');b.textContent=`${i+1}. ${l.title[lang]}`;b.onclick=()=>api.start(l.id);return b;}));
@@ -72,6 +72,21 @@ export function mountLearning({getLanguage,prepare,getState}){
  if(active){$('lessonCounter').textContent=`${index+1} / ${active.steps.length}`;$('lessonTitle').textContent=active.title[lang];$('lessonBody').textContent=active.steps[index].text[lang];$('lessonPrevious').disabled=index===0;api.tick();}
  }
  $('backToMenu').onclick=api.menu;$('lessonRestart').onclick=()=>api.start(active.id,variant);$('lessonPrevious').onclick=()=>{if(index>0){index--;enter();}};
- $('lessonNext').onclick=()=>{if(!active||!getState(active.steps[index].check))return;if(index===active.steps.length-1){api.menu();return;}index++;enter();};
+ $('lessonNext').onclick=()=>{if(!active)return;if(index===active.steps.length-1){api.menu();return;}index++;enter();};
  $('swapVariant').onchange=()=>api.start('swap',$('swapVariant').value);render();return api;
+}
+
+// Exact documented pin references for the current instructional step.
+export function pinTargets(lesson,step){
+ const target=(kind,n,tone='can')=>({kind,n,tone});
+ if((lesson==='voltage'&&['mode','read','zero','interpret'].includes(step))||(lesson==='swap'&&step==='voltage'))return [target('circular',7,'red'),target('circular',8,'black')];
+ if(lesson==='continuity'||lesson==='swap'){
+ if(['endLo','failed','lo'].includes(step))return [target('orange',9),target('circular',1)];
+ if(['endHi','hi'].includes(step))return [target('orange',10),target('circular',2)];
+ if(step==='upper')return [target('orange',9),target('up4',3)];
+ if(step==='lower')return [target('circular',1),target('low4',3)];
+ if(step==='isolate')return [target('orange',10),target('up4',4),target('circular',2),target('low4',4)];
+ }
+ if(lesson==='wires')return ({orange:[target('orange',9),target('orange',10)],upper:[target('up4',3),target('up4',4)],lower:[target('low4',3),target('low4',4)],circular:[target('circular',1),target('circular',2),target('circular',12,'warning')]})[step]||[];
+ return [];
 }

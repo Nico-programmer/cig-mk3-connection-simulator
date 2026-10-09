@@ -11,3 +11,7 @@
 #pinGuidance{position:fixed;inset:0;z-index:35;pointer-events:none}.pinNumberLabel,.probePinLabel{position:fixed;pointer-events:none;border:1px solid #42e8df;background:#092331ed;color:#8ffff4;border-radius:5px;padding:4px 6px;font-size:14px;font-weight:bold;white-space:nowrap;box-shadow:0 2px 6px #0008}.pinNumberLabel.red{border-color:#ff7668;color:#ffaaa0}.pinNumberLabel.black{border-color:#f3f7fa;color:#f3f7fa}.pinNumberLabel.warning{border-color:#ffc15b;color:#ffc15b}.probePinLabel{z-index:36;max-width:250px;white-space:normal;font-size:14px;line-height:1.3}.probePinLabel[data-probe="0"]{border-color:#ff7668;color:#ffaaa0}.probePinLabel[data-probe="1"]{border-color:#f3f7fa;color:#f3f7fa}.pinNumberLabel[hidden],.probePinLabel[hidden]{display:none}
 
 #meterExample{display:block;margin:5px 0;color:#ffbd85;font-size:13px;line-height:1.35}#meterExample[hidden]{display:none}
+
+#lessonBody{white-space:pre-line}#continuityNote{font-size:14px;line-height:1.45;color:#aee8e3;border-left:2px solid #42e8df;padding-left:9px;margin:10px 0 14px}#continuityNote[hidden]{display:none}
+
+#continuityVariant{width:100%;font-size:14px;background:#172d3c;color:#edf3f6;padding:8px;border:1px solid #6e8291;border-radius:5px;margin-top:6px}#continuityVariant[hidden]{display:none}

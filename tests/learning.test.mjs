@@ -9,6 +9,12 @@ const c=lessons.find(l=>l.id==='continuity').steps.map(s=>s.id);assert.deepEqual
 console.log('Eight ordered bilingual lessons, compact content, continuity order and removed instructor/evaluator passed.');
 
 assert.deepEqual(pinTargets('voltage','mode').map(p=>[p.kind,p.n,p.tone]),[['circular',7,'red'],['circular',8,'black']]);
-assert.deepEqual(pinTargets('continuity','upper').map(p=>[p.kind,p.n]),[['orange',9],['up4',3]]);
-assert.deepEqual(pinTargets('continuity','lower').map(p=>[p.kind,p.n]),[['circular',1],['low4',3]]);
+assert.deepEqual(pinTargets('continuity','upper').map(p=>[p.kind,p.n]),[['orange',9],['up4',3],['orange',10],['up4',4]]);
+assert.deepEqual(pinTargets('continuity','lower').map(p=>[p.kind,p.n]),[['low4',3],['circular',1],['low4',4],['circular',2]]);
 assert.deepEqual(pinTargets('wires','circular').map(p=>p.n),[1,2,12]);assert.deepEqual(pinTargets('led','normal'),[]);
+
+for(const lesson of lessons.filter(l=>['continuity','swap'].includes(l.id)))for(const step of lesson.steps.filter(s=>['endLo','endHi','failed','upper','lower','lo','hi'].includes(s.id))){assert.match(step.text.es,/punta negra/);assert.match(step.text.es,/punta roja/);assert.match(step.text.en,/black probe/);assert.match(step.text.en,/red probe/);}
+for(const step of lessons.find(l=>l.id==='continuity').steps.filter(s=>['upper','lower'].includes(s.id))){assert.match(step.text.es,/Café · CAN LO/);assert.match(step.text.es,/Naranja · CAN HI/);assert.match(step.text.en,/Brown · CAN LO/);assert.match(step.text.en,/Orange · CAN HI/);}
+const {continuityLesson,continuityExamples}=await import('../dist/learning.js');
+assert.equal(continuityExamples.length,3);
+for(const variant of ['middleUnsecured','middleTerminal']){const lesson=continuityLesson(variant);assert.equal(lesson.scenario,'continuityFault');assert.equal(lesson.steps[0].id,'failed');assert.equal(lesson.steps.find(s=>s.id==='lower').check,'lowerLoPass');assert.match(lesson.steps.find(s=>s.id==='isolate').text.es,/ambos tramos son continuos/);for(const step of lesson.steps){assert.ok(step.text.es.length<390&&step.text.en.length<420);}}

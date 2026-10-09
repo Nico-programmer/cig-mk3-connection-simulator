@@ -155,7 +155,7 @@ function updatePinGuidance(){
  const lesson=learning.active,current=lesson?.steps[learning.index],targets=pinTargets(lesson?.id,current?.id),key=JSON.stringify(targets);
  if(key!==highlightKey||highlightParts!==parts){
  for(const h of highlightedPins){h.ring.geometry.dispose();h.ring.material.dispose();pinHighlightGroup.remove(h.ring);}highlightedPins=[];const labels=[];
- for(const target of targets){const port=workParts.flatMap(p=>p.ports).find(p=>p.kind===target.kind),pin=port?.pins.find(p=>p.userData.pin.n===target.n);if(!pin)continue;
+ for(const target of targets){const installedUpper=workParts[0]?.ports[0].mate?.part;const pinParts=installedUpper?.type==='upper'?[workParts[0],installedUpper,...workParts.slice(2)]:workParts;const port=pinParts.flatMap(p=>p.ports).find(p=>p.kind===target.kind),pin=port?.pins.find(p=>p.userData.pin.n===target.n);if(!pin)continue;
  const color=({red:0xff7668,black:0xf3f7fa,can:0x42e8df,warning:0xffc15b})[target.tone];
  const ring=new T.Mesh(new T.RingGeometry(.075,.115,32),new T.MeshBasicMaterial({color,side:T.DoubleSide,depthTest:false,depthWrite:false}));ring.renderOrder=1200;ring.raycast=()=>{};pinHighlightGroup.add(ring);
  const badge=document.createElement('span');badge.className='pinNumberLabel '+target.tone;badge.textContent='Pin '+target.n;badge.title=portName(port)+' · '+PINS[port.kind][target.n];labels.push(badge);highlightedPins.push({port,pin,n:target.n,ring,badge});
@@ -169,7 +169,8 @@ function updatePinGuidance(){
 }
 function prepareLesson(code,variant='screen'){
  releaseDrag();lessonMeasurement=null;lessonEvents.clear();swapParts=null;
- const swap=code==='swap';buildScenario(swap?(variant==='vehicle'?'F3':'F9'):code,'lower');
+ const swap=code==='swap',middleExample=code==='continuityFault';buildScenario(swap?(variant==='vehicle'?'F3':'F9'):middleExample?(variant==='middleUnsecured'?'F4':'healthy'):code,'lower');
+ if(middleExample){const upper=workParts[1];if(variant==='middleUnsecured')upper.contactFault=null;else upper.ports[1].openContactPins=new Set([3]);}
  setMeterMode('off');circuit.key=false;keyLever.rotation.z=0;circuit.evaluate();
  if(code==='F2'){for(const p of parts.filter(p=>p.type==='em'))p.hasBeenPowered=false;circuit.previousPower.clear();}
  staticLabels[0].es=swap?'VEHÍCULO DE REFERENCIA':'REPUESTOS';staticLabels[0].en=swap?'REFERENCE VEHICLE':'SPARE PARTS';
@@ -201,7 +202,7 @@ function lessonCheck(check){
  case 'probesFree':return probeTools.every(p=>!p.contact);
  case 'continuityMode':return !circuit.key&&meterMode==='continuity';
  case 'endLoPass':return !circuit.key&&reading(0,'lo',true);case 'endHiPass':return !circuit.key&&reading(0,'hi',true);
- case 'endLoFail':return !circuit.key&&reading(0,'lo',false);case 'upperLoPass':return !circuit.key&&reading(1,'lo',true);case 'lowerLoFail':return !circuit.key&&reading(2,'lo',false);
+ case 'endLoFail':return !circuit.key&&reading(0,'lo',false);case 'upperLoPass':return !circuit.key&&reading(1,'lo',true);case 'lowerLoPass':return !circuit.key&&reading(2,'lo',true);case 'lowerLoFail':return !circuit.key&&reading(2,'lo',false);
  case 'inspectOrange':return focus===upper.ports[0]&&open(upper.ports[0]);case 'inspectUpper':return focus===upper.ports[1]&&open(upper.ports[1]);case 'inspectLower':return focus===lower.ports[0]&&open(lower.ports[0]);case 'inspectCircular':return focus===lower.ports[1]&&open(lower.ports[1]);
  case 'swapOpen':return !!swapParts&&!circuit.key&&probeTools.every(p=>!p.contact)&&open(swapParts.upper.ports[0])&&open(swapParts.refUpper.ports[0]);
  case 'screensMoved':return !!swapParts&&swapParts.good.root.position.z>-2&&swapParts.suspect.root.position.z<-3;

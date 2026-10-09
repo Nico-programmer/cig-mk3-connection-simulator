@@ -11,7 +11,7 @@ export class Circuit{
  if((part.contactFault==='F4'||part.contactFault==='F5')&&['lo','hi'].includes(s))continue;
  let bp=SIGNALS[b.kind][s];if(f==='F12'&&s==='hi')bp=12;
  add(node(a,SIGNALS[a.kind][s]),node(b,bp));}}
- for(const j of this.joints){if(!j.inserted)continue;if(!SIGNALS[j.a.kind])continue;for(let n=1;n<=(['up4','low4'].includes(j.a.kind)?4:12);n++){const s=Object.keys(SIGNALS[j.a.kind]).find(k=>SIGNALS[j.a.kind][k]===n);if(!j.secured&&s!=='pos'&&s!=='gnd')continue;add(node(j.a,n),node(j.b,n));}}
+ for(const j of this.joints){if(!j.inserted)continue;if(!SIGNALS[j.a.kind])continue;for(let n=1;n<=(['up4','low4'].includes(j.a.kind)?4:12);n++){const s=Object.keys(SIGNALS[j.a.kind]).find(k=>SIGNALS[j.a.kind][k]===n);if(!j.secured&&s!=='pos'&&s!=='gnd')continue;if(j.a.openContactPins?.has(n)||j.b.openContactPins?.has(n))continue;add(node(j.a,n),node(j.b,n));}}
  this.g=g;return g;}
  connected(a,b){if(a===b)return true;const seen=new Set([a]),queue=[a];for(let i=0;i<queue.length;i++){for(const x of this.g.get(queue[i])||[]){if(x===b)return true;if(!seen.has(x)){seen.add(x);queue.push(x);}}}return false;}
  source(){const p=this.powerUpper?.ports.find(p=>p.kind==='up4');return p?{pos:this.powerUpper.fault==='F1'?node(this.powerUpper.ports.find(p=>p.kind==='orange'),2):node(p,1),gnd:node(p,2)}:null;}

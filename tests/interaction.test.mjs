@@ -104,3 +104,30 @@ app.placeProbe(1,null);app.animate(10400);assert(app.meterResult==='—','One di
 // Teaching's deliberate zero-supply example is separate from the healthy 12 V example.
 app.learning.start('voltage');els.lessonNext.onclick();app.circuit.key=true;els.modeVoltage.onclick();app.placeProbe(0,{port:app.parts[3].ports[0],n:7});app.placeProbe(1,{port:app.parts[3].ports[0],n:8});app.animate(10500);assert(app.meterResult==='12.0 V','Healthy voltage lesson step 2 uses actual powered graph');assert(els.meterExample.textContent.includes('sin falla'),'Healthy demonstration is labelled');els.lessonNext.onclick();els.lessonNext.onclick();app.circuit.key=true;els.modeVoltage.onclick();app.placeProbe(0,{port:app.parts[3].ports[0],n:7});app.placeProbe(1,{port:app.parts[3].ports[0],n:8});app.animate(10600);assert(app.meterResult==='0.0 V','Lesson step 4 remains a deliberate interrupted-supply example');assert(els.meterExample.textContent.includes('interrumpida'),'Zero-supply demonstration is explicitly labelled');
 console.log('Live voltage recomputation passed for exact EM contacts, power, polarity, reconnection and conductor interruption.');
+
+app.learning.start('continuity');assert(!els.continuityNote.hidden&&els.continuityNote.textContent.includes('polaridad no importa'),'Continuity shows persistent polarity note');els.lessonNext.onclick();assert(els.lessonBody.textContent.includes('punta negra en pin 9')&&els.lessonBody.textContent.includes('punta roja en pin 1'),'End-to-end instruction names both probe endpoints');els.lang.onclick();assert(els.continuityNote.textContent.includes('polarity does not matter')&&els.lessonBody.textContent.includes('black probe on pin 9'),'Polarity note and probe placements translate');els.lang.onclick();app.learning.start('voltage');assert(els.continuityNote.hidden,'Continuity note stays out of voltage lesson');
+
+// Prepared middle-joint cases preserve both individual harness conductors.
+for(const variant of ['middleUnsecured','middleTerminal']){
+ app.learning.start('continuity',variant);assert(!els.continuityVariant.hidden&&els.continuityVariant.value===variant,'Compact selector prepares '+variant);
+ const [screen,upper,lower,em]=app.workParts;
+ measure('continuity',upper.ports[0],9,lower.ports[1],1);assert(app.meterResult==='NO PASA','Middle contact interrupts end-to-end CAN LO '+variant);next();
+ measure('continuity',upper.ports[0],9,upper.ports[1],3);assert(app.meterResult==='PASA','Upper harness including its terminal remains continuous '+variant);next();
+ measure('continuity',lower.ports[1],1,lower.ports[0],3);assert(app.meterResult==='PASA','Lower harness including its terminal remains continuous '+variant);next();
+ assert(els.lessonBody.textContent.includes('contacto entre las dos mitades'),'Guide explicitly deduces failed middle contact');key(true);assert(app.circuit.evaluate().ems[em.id]==='blink'&&app.circuit.evaluate().screens[screen.id]==='spinner','Power remains normal while middle communication is interrupted '+variant);key(false);
+ for(let i=0;i<2;i++)els['removeProbe'+i].onclick();disconnect(2,0);assert(joint(2,0),'Physical middle reseating '+variant);
+ const state=app.circuit.evaluate();key(true);assert(app.circuit.evaluate().screens[screen.id]===(variant==='middleUnsecured'?'normal':'spinner'),'Reseating fixes securing but retains defective terminal '+variant);key(false);
+ if(variant==='middleTerminal'){
+ const oldContact=upper.ports[1].openContactPins;assert(oldContact.has(3),'Fault belongs to upper 4-pin pin 3');
+ disconnect(1,0);disconnect(2,0);upper.root.position.set(-7,0,6.5);app.refreshCables();
+ const spare=app.parts[5];for(const [port,target] of [[spare.ports[0],screen.ports[0]],[spare.ports[1],lower.ports[0]]]){app.select(port);app.setWorldPosition(port.group,app.worldPos(target).add(app.V(0,1.2,0)));assert(app.connectSelected(),'Connect known-good upper replacement to '+target.kind);}
+ assert(oldContact.has(3),'Removed harness retains its defective terminal');key(true);assert(app.circuit.evaluate().screens[screen.id]==='normal','Whole upper harness replacement restores actual communication');key(false);
+ measure('continuity',spare.ports[0],9,lower.ports[1],1);assert(app.meterResult==='PASA','Replacement restores end-to-end conductor');
+ // Move guide to verification and ensure its highlighting follows the installed spare.
+ while(app.learning.active.steps[app.learning.index].id!=='verifyLo')els.lessonNext.onclick();app.updatePinGuidance();assert(app.highlightedPins.find(h=>h.port.kind==='orange').port.part===spare,'Verification highlights installed replacement instead of removed harness');
+ }
+ els.lessonRestart.onclick();assert(app.learning.variant===variant&&app.learning.index===0,'Repeat preserves selected middle example');
+ app.circuit.key=true;assert(app.circuit.evaluate().screens[app.workParts[0].id]==='spinner','Repeat recreates original middle contact fault');
+}
+els.continuityVariant.value='lowerHarness';els.continuityVariant.onchange();assert(app.learning.variant==='lowerHarness'&&app.learning.active.steps.length===8,'Selector returns to original lower-harness exercise');
+console.log('Middle unsecured/contact-terminal deductions, reseating, physical replacement and repeated examples passed.');

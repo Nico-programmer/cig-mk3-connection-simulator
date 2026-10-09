@@ -5,7 +5,7 @@ import { cachedCollider as colliderOf, curveFor, pathKey, updateTube } from "../
 import { PINS } from "../electrical.js";
 import { cable } from "../geometry.js";
 import { meter } from "./bench.js";
-import { cableVolumes, refreshColliders } from "./colliders.js";
+import { refreshColliders } from "./colliders.js";
 import { hits } from "./input.js";
 import { drawMeter, takeProbe, updateMeterControls } from "./meter.js";
 import { probeTools, probeWires } from "./probe-tools.js";
@@ -146,7 +146,6 @@ export function refreshProbes() {
     } else updateTube(wire, curveFor(points, true), true);
     wire.visible = true;
     tool.wireKey = key;
-    cableVolumes(wire, null);
     wire.traverse((m) => {
       m.userData.probeLead = i;
     });

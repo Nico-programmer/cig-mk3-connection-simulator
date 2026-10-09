@@ -2,7 +2,7 @@
 import { curveFor, updateTube } from "../drag-performance.js";
 import { cable } from "../geometry.js";
 import { updateBypassCables } from "./bypass.js";
-import { cableVolumes, refreshColliders } from "./colliders.js";
+import { refreshColliders } from "./colliders.js";
 import { refreshProbes } from "./probes.js";
 import { V } from "./util.js";
 import { S } from "./state.js";
@@ -27,7 +27,6 @@ export function updateCable(p, solidsOnly = false) {
   }
   if (p.cableShapeKey !== key) {
     mesh.userData.cableCurve = curveFor(points);
-    cableVolumes(mesh, p);
     p.cableShapeKey = key;
   }
   if (solidsOnly) return;

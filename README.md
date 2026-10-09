@@ -117,3 +117,19 @@ The pre-existing rotation bug (`rotateSelected` refers to an undefined `context`
 Measured with the real modules (CPU, mocked renderer), continuity lesson with the chain assembled: frame 83 ms → 2.5 ms; probe drag move 253 ms → 12 ms; probe connection 400 ms → 10 ms. In Chromium, long main-thread tasks during the lesson went from 6 in 4 s (worst 123 ms) to none. The full test run dropped from about 70 s to 35 s.
 
 Behaviour is unchanged. `tests/probe-pose.test.mjs` compares the new code with the 1.0 algorithm for 1,344 pin/clearance cases and 560 probe-tip positions, requiring exact equality. The 121-step scripted run remains identical to 1.0.
+
+
+## 1.14: rigid-body collision rebuilt (step 3)
+`app/colliders.js` was rewritten and `app/movement.js` uses it. Three one-line removals were made elsewhere: cable collision proxies are no longer generated in `cables.js`, `bypass.js` and `probes.js`.
+
+Rules: only rigid hardware is solid (77 boxes, previously 906). Cables are flexible and never block anything; they become physical ropes in later steps. There are two exemptions, both in one function: mated connector hulls, and a probe tip on the connector it measures. A probe connected to the moving part follows it. Dragging is one swept move with sliding along surfaces. Rotation goes through the same checks; a part tilted into the table is lifted onto it, and any other contact cancels the turn.
+
+Fixed:
+- Rotation threw `ReferenceError: context is not defined` and skipped collision.
+- Dragging the MK3 or EM by its housing ignored every other part.
+
+Results: a connector drag step costs about 2.8 ms (previously about 21 ms) and an MK3 body step about 0.4 ms. A lesson frame costs about 0.6 ms of CPU.
+
+Tests: `tests/collision.test.mjs` is new. It covers the two fixed bugs, rotation of every part and connector on every axis, sliding, a probe that follows its connector, and 320 seeded random drags and rotations. After each move it checks that no two rigid bodies overlap and nothing enters the table. Run against 1.13 as a control, the same checks fail.
+
+Three assertions in `interaction.test.mjs` described cables as solids; they now assert the flexible-cable rule. Every other existing assertion is unchanged and passes. The scripted 121-step run matches 1.0 in all lesson, meter, circuit and joint state. The only differences are in the keyboard-rotation steps, where 1.0 threw before updating the selection panel.

@@ -2,7 +2,6 @@
 import * as T from "three";
 import { curveFor, pathKey, updateTube } from "../drag-performance.js";
 import { box, cable } from "../geometry.js";
-import { cableVolumes } from "./colliders.js";
 import { attach } from "./connection.js";
 import { workParts } from "./scenario.js";
 import { dynamic, scene } from "./scene.js";
@@ -87,7 +86,6 @@ export function updateBypassCables() {
       } else if (m.userData.pathKey !== key) updateTube(m, curveFor(points));
       if (!stripe) {
         m.userData.bypassPort = p;
-        if (m.userData.pathKey !== key) cableVolumes(m, "bypass");
       }
       m.userData.pathKey = key;
       at++;

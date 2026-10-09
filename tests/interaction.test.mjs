@@ -55,7 +55,7 @@ function clickContact(index,n){const pose=app.probePose({port,n},.34);app.probeT
 clickContact(0,1);clickContact(1,2);assert(app.meterResult==='12.0 V','Complete pointer-and-button workflow reads 12.0 V');els.removeProbe0.onclick();els.removeProbe1.onclick();els.modeContinuity.onclick();clickContact(0,2);const orange=app.parts[1].ports[0],pin=orange.pins.find(p=>p.userData.pin.n===1);els.selectProbe1.onclick();app.probeTools[1].group.quaternion.copy(app.probePose({port:orange,n:1},.18).quaternion);app.probeTools[1].group.position.copy(app.probePose({port:orange,n:1},.18).position);app.updateMeterControls();els.probeConnect.onclick();assert(app.meterResult==='PASA','Same UI flow reads ground continuity');els.removeProbe0.onclick();els.removeProbe1.onclick();assert(app.meterResult==='—','UI removal ends complete measurement');assert(app.sceneCursor({clientX:100,clientY:100,buttons:0})==='default','Background restores default visible pointer');
 
 app.buildScenario('assembly');
-assert(app.allColliders.some(m=>m.userData.cableOwner),'Harness cable volumes registered');assert(app.allColliders.some(m=>m.userData.probeLead===0),'Meter lead volumes registered');assert(app.allColliders.some(m=>m.userData.probeIndex),'Probe body volumes registered');
+assert(!app.allColliders.some(m=>m.userData.cableOwner),'Cables are flexible (1.14): no harness or bypass cable volumes are registered as solids');assert(!app.allColliders.some(m=>m.userData.probeLead!==undefined),'Cables are flexible (1.14): meter leads are not registered as solids');assert(app.allColliders.some(m=>m.userData.probeIndex),'Probe body volumes registered');
 for(const part of app.parts)for(const port of part.ports){assert(port.colliders.length===1&&port.colliders[0].userData.colliderOnly,'Continuous connector hull '+port.kind);const center=app.colliderOf(port.colliders[0]).center;assert(!app.cameraSafe(center),'Camera cannot occupy connector '+port.kind);}
 for(const part of app.parts.filter(p=>['screen','em'].includes(p.type))){const inside=part.root.localToWorld(app.V(0,1.2,0));app.camera.position.copy(inside);app.lastCamera.copy(inside);app.guardCamera();assert(app.cameraSafe(app.camera.position),'Camera recovers when enclosed by '+part.type);}
 app.camera.position.set(12,13,22);app.lastCamera.copy(app.camera.position);
@@ -158,8 +158,8 @@ for(const type of ['meter','up4','circular']){
  assert(points&&points.slice(1).every((p,i)=>boxes.every(o=>!segmentHitsSolid(points[i],p,o,.038))),'Lead remains outside solid surfaces for '+type);
  target.position.copy(savedPosition);target.quaternion.copy(savedQ);
 }
-// A probe must also stop against an actual harness cable, not just rigid pieces.
-app.buildScenario('assembly');const cableSolid=app.allColliders.find(m=>m.userData.cableOwner===app.parts[1]),cableBox=app.colliderOf(cableSolid),probe=app.probeTools[0].group;
-probe.quaternion.identity();probe.position.copy(cableBox.center).add(app.V(0,1.5,-.6));app.refreshProbes();app.refreshColliders();app.moveProbe(0,cableBox.center.clone().add(app.V(0,-1.5,-.6)));
-assert(probe.position.y>cableBox.center.y,'Probe sweep stops at harness cable');
-console.log('Actual pointer crossing attempts stopped on meter, 4-pin and circular shells; lead clearance and harness contact passed.');
+// 1.14: cables are flexible and never block a rigid tool; the probe passes a harness cable and stops on the table.
+app.buildScenario('assembly');const cablePoint=app.parts[1].cableGroup.children[0].userData.cableCurve.getPointAt(.5),probe=app.probeTools[0].group;
+probe.quaternion.identity();probe.position.copy(cablePoint).add(app.V(0,1.5,-.6));app.refreshProbes();app.refreshColliders();app.moveProbe(0,cablePoint.clone().add(app.V(0,-1.5,-.6)));
+assert(probe.position.y<cablePoint.y&&probe.position.y>-.115,'Probe passes a harness cable (cables yield) and stops on the table');
+console.log('Actual pointer crossing attempts stopped on meter, 4-pin and circular shells; lead clearance and flexible-cable rule passed.');

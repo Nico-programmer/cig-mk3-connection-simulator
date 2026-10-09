@@ -1,4 +1,4 @@
-# Módulos de la aplicación (versión 1.13)
+# Módulos de la aplicación (versión 1.14)
 
 `dist/app.js` es solo el punto de entrada: carga los módulos de esta carpeta en el orden de arranque original y llama a `buildScenario()` y al bucle de animación.
 
@@ -22,8 +22,8 @@ La versión 1.1 es una reestructuración pura de la 1.0 (antes llamada v16): cad
 | `scenario.js` | Arma el banco de cada escenario (piezas, repuestos, uniones, fallas). |
 | `spatial.js` | Posición y orientación en el mundo, búsquedas en el grafo de escena. |
 | `connection.js` | Compatibilidad, alineación, conectar/desconectar, rosca. |
-| `movement.js` | Mover y rotar la selección. |
-| `colliders.js` | Volúmenes y consultas de colisión. **Se reconstruye en el paso 3.** |
+| `movement.js` | Mover y rotar la selección (usa `colliders.js`). |
+| `colliders.js` | Colisión del hardware rígido (reconstruido en la 1.14). Las excepciones viven solo en `exempt()`. Movimiento con deslizamiento (`moveWithSlide`) y rotación comprobada (`rotateChecked`). |
 | `cables.js` | Cable del arnés. **Se reconstruye en el paso 6.** |
 | `probes.js` | Colocación, movimiento y cables de las puntas. Optimizado en la 1.13 (paso 2). **Los cables se rehacen en el paso 5.** |
 | `bypass.js` | Conectores y cables del bypass. **Paso 7.** |
@@ -48,6 +48,12 @@ Fuera de esta carpeta y sin cambios: `../electrical.js`, `../learning.js`, `../g
 4. **Los demás módulos solo declaran funciones** y registran eventos. No ejecutan lógica al cargarse.
 5. **`lessonCheck` es el contrato con las lecciones.** Lee `S.joints`, `probeTools[i].contact`, `S.focus`, `S.meterMode` y `S.lessonMeasurement`. Esos campos deben seguir existiendo con el mismo significado.
 
-## Error conocido conservado a propósito
+## Reglas de colisión (desde 1.14)
 
-`movement.js` → `rotateSelected` usa la variable `context`, que no existe. Esto produce un `ReferenceError` y la rotación no comprueba colisiones. Viene de la 1.0 (v16) y se corrige en el paso 3, con el nuevo sistema de colisiones.
+- **Sólidos:** solo el hardware rígido, es decir, las mallas con `userData.solid`: MK3, EM, carcasas de conectores, conectores del bypass, llave, multímetro y puntas. Son unas 77 cajas.
+- **Cables:** son flexibles y nunca bloquean. Hasta que se conviertan en cuerdas (pasos 5–7), una pieza puede pasar visualmente a través de un cable.
+- **Excepciones (`exempt`):** dos conectores acoplados entre sí no chocan, y la punta no choca con el conector donde mide.
+- **Puntas conectadas:** una punta conectada a un pin de la pieza que se mueve la acompaña y no la bloquea.
+- **Mesa y cámara:** ninguna pieza baja de la mesa (y = −0,115) ni entra en la esfera de la cámara (radio 0,38). La regla de la cámara cambia en el paso 4.
+- **Rotación:** se aplica en incrementos de 3°. Si solo la mesa lo impide, la pieza se eleva para apoyarse; cualquier otro contacto cancela la rotación.
+- **Piezas encimadas al inicio:** si una pieza ya está encimada al empezar a moverla, ese contacto se ignora durante ese movimiento para poder separarla.

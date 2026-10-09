@@ -1,15 +1,20 @@
-// Collision volumes and collision queries for parts, cables and probes.
+// Collision for rigid hardware: MK3 screen, Expansion Module, every connector, bypass
+// connectors, key switch, multimeter and probes. Cables are flexible and are never
+// obstacles (from 1.14). All exemptions live in exempt(); nothing else filters solids.
 import * as T from "three";
-import { bounds, cachedCollider as colliderOf, colliderGrid } from "../drag-performance.js";
+import { bounds, cachedCollider as colliderOf } from "../drag-performance.js";
 import { keyGroup, meter } from "./bench.js";
-import { bypassCables } from "./bypass.js";
-import { selectedPorts } from "./movement.js";
 import { probeGroup, probeTools } from "./probe-tools.js";
 import { camera, dynamic } from "./scene.js";
-import { ancestorData, isDescendant } from "./spatial.js";
-import { V } from "./util.js";
+import { isDescendant, setWorldPosition } from "./spatial.js";
 import { S } from "./state.js";
 
+export const CAMERA_RADIUS = 0.38; // moving hardware may not enter this sphere (until step 4)
+export const FLOOR_Y = -0.115; // table surface
+const SWEEP_STEP = 0.02; // finer than the thinnest rigid solid (probe tip, 0.13)
+const BISECT = 6; // contact precision: SWEEP_STEP / 2^6 ≈ 0.0003
+
+// Rigid solids are meshes with userData.solid. Cable meshes carry no solids.
 export function refreshColliders() {
   S.allColliders = [];
   S.pinPicks = [];
@@ -18,101 +23,161 @@ export function refreshColliders() {
       if (m.userData.solid) S.allColliders.push(m);
       if (m.userData.pin) S.pinPicks.push(m);
     });
-  for (const mesh of bypassCables)
-    mesh.traverse((m) => {
-      if (m.userData.solid) S.allColliders.push(m);
-    });
-}
-export function cableVolumes(mesh, owner) {
-  const curve = mesh.userData.cableCurve;
-  if (!curve) return;
-  const radius = mesh.userData.cableRadius,
-    segments = Math.max(32, Math.ceil(curve.getLength() / 0.08));
-  while (mesh.children.length > segments) mesh.remove(mesh.children.at(-1));
-  for (let i = 0; i < segments; i++) {
-    const a = curve.getPointAt(i / segments),
-      b = curve.getPointAt((i + 1) / segments),
-      mid = curve.getPointAt((i + 0.5) / segments),
-      pad = radius + mid.distanceTo(a.clone().lerp(b, 0.5)) + 0.002;
-    let proxy = mesh.children[i];
-    if (!proxy) {
-      proxy = new T.Object3D();
-      mesh.add(proxy);
-    }
-    proxy.position.copy(a).lerp(b, 0.5);
-    proxy.quaternion.setFromUnitVectors(V(0, 0, 1), b.clone().sub(a).normalize());
-    if (!proxy.userData.solid) proxy.userData.solid = V();
-    proxy.userData.solid.set(pad, pad, a.distanceTo(b) / 2 + pad);
-    proxy.userData.cableOwner = owner;
-    proxy.userData.colliderOnly = true;
-  }
 }
 
-// Physical instruments and documented notices are part of the bench, not side panels.
-export function collisionContext(entity, sel) {
-  const exemptions = new Set();
-  for (const p of selectedPorts(sel)) if (p.mate) p.mate.colliders.forEach((m) => exemptions.add(m));
-  const other = S.allColliders
-    .filter(
-      (m) =>
-        !isDescendant(m, entity) &&
-        !exemptions.has(m) &&
-        m.userData.cableOwner !== sel.part &&
-        ancestorData(m, "bypassPort") !== sel.port,
-    )
-    .map((m) => ({
-      m,
-      obb: colliderOf(m),
-    }));
-  return {
-    grid: colliderGrid(other),
-  };
-}
-export function exemptPair(m, n, sel) {
-  return (
-    (m.userData.cableOwner === sel.part &&
-      (isDescendant(n, sel.part.root) || sel.part.ports.some((p) => p.mate?.colliders.includes(n)))) ||
-    (sel.part.type === "lower" &&
-      (m.userData.cableOwner === sel.part || m.userData.port?.kind === "circular") &&
-      n.userData.cableOwner === "bypass") ||
-    (n.userData.probeTip && probeTools[n.userData.probeIndex - 1].contact?.port === m.userData.port)
-  );
-}
-export function collision(entity, sel, context = null) {
-  entity.updateWorldMatrix(true, true);
-  const own = S.allColliders.filter((m) => isDescendant(m, entity) || m.userData.cableOwner === sel.part),
-    grid = (context || collisionContext(entity, sel)).grid;
-  for (const m of own) {
-    const a = colliderOf(m);
-    if (a.intersectsSphere(new T.Sphere(camera.position, 0.38))) return true;
-    const axes = a.rotation.elements,
-      yextent =
-        Math.abs(axes[1]) * a.halfSize.x +
-        Math.abs(axes[4]) * a.halfSize.y +
-        Math.abs(axes[7]) * a.halfSize.z;
-    if (a.center.y - yextent < -0.115) return true;
-    for (const { m: n, obb: b } of grid.query(bounds(a))) {
-      if (exemptPair(m, n, sel)) continue;
-      if (a.intersectsOBB(b, 1e-5)) return true;
-    }
+const portOf = (m) => m.userData.port || null;
+// The only two exemptions: mated connector hulls, and a probe tip on the connector it measures.
+function exempt(a, b) {
+  const pa = portOf(a),
+    pb = portOf(b);
+  if (pa && pb && pa.mate === pb) return true;
+  for (const [tip, other] of [
+    [a, pb],
+    [b, pa],
+  ]) {
+    if (!tip.userData.probeTip || !other) continue;
+    const contact = probeTools[tip.userData.probeIndex - 1].contact;
+    if (contact && (other === contact.port || other === contact.port.mate)) return true;
   }
   return false;
 }
-// One step is safe only if the entire swept bounds are clear. Close to anything,
-// retain v12's .025 increments. Deforming harnesses also retain the fine sweep.
-// One step is safe only if the entire swept bounds are clear. Close to anything,
-// retain v12's .025 increments. Deforming harnesses also retain the fine sweep.
-export function clearTranslation(entity, sel, delta, context) {
-  if (sel.part.cableGroup && entity !== sel.part.root) return false;
-  const cameraBox = new T.Box3().setFromCenterAndSize(camera.position, V(0.76, 0.76, 0.76));
-  for (const m of S.allColliders.filter(
-    (m) => isDescendant(m, entity) || m.userData.cableOwner === sel.part,
-  )) {
-    const box = bounds(colliderOf(m)),
-      end = box.clone().translate(delta);
-    box.union(end);
-    if (box.min.y < -0.115 || box.intersectsBox(cameraBox)) return false;
-    for (const { m: n } of context.grid.query(box)) if (!exemptPair(m, n, sel)) return false;
+
+// Probes connected to a pin of the moving entity follow it, so they are not obstacles to it.
+function attachedProbe(m, entity) {
+  const index = m.userData.probeIndex;
+  if (index === undefined) return false;
+  const contact = probeTools[index - 1].contact;
+  return !!contact && isDescendant(contact.port.group, entity);
+}
+
+// Snapshot of everything that does not move with `entity`. Valid while only `entity` moves.
+export function collisionContext(entity) {
+  entity.updateWorldMatrix(true, true);
+  const moving = [],
+    obstacles = [];
+  for (const m of S.allColliders) {
+    if (isDescendant(m, entity)) moving.push(m);
+    else if (!attachedProbe(m, entity)) {
+      const obb = colliderOf(m);
+      obstacles.push({ m, obb, box: bounds(obb) });
+    }
+  }
+  return { entity, moving, obstacles, ignore: new Set() };
+}
+
+const pairKey = (a, b) => a.uuid + "|" + b.uuid;
+// First blocking contact at the entity's current pose, or null.
+function contactAt(ctx, candidates = ctx.obstacles) {
+  ctx.entity.updateWorldMatrix(true, true);
+  const sphere = new T.Sphere(camera.position, CAMERA_RADIUS);
+  for (const m of ctx.moving) {
+    const a = colliderOf(m),
+      box = bounds(a);
+    if (!ctx.ignore.has(m.uuid + "|camera") && a.intersectsSphere(sphere)) return { m, other: "camera" };
+    if (!ctx.ignore.has(m.uuid + "|floor") && box.min.y < FLOOR_Y) return { m, other: "floor" };
+    for (const o of candidates) {
+      if (!o.box.intersectsBox(box) || ctx.ignore.has(pairKey(m, o.m)) || exempt(m, o.m)) continue;
+      if (a.intersectsOBB(o.obb, 1e-5)) return { m, other: o.m };
+    }
+  }
+  return null;
+}
+// Lets a part that already overlaps something (e.g. after a scenario change) be pulled free.
+function ignoreStartingContacts(ctx) {
+  for (let hit = contactAt(ctx), guard = 0; hit && guard < 64; hit = contactAt(ctx), guard++)
+    ctx.ignore.add(hit.other === "camera" || hit.other === "floor" ? hit.m.uuid + "|" + hit.other : pairKey(hit.m, hit.other));
+}
+
+export function collision(entity, sel, context = null) {
+  return !!contactAt(context || collisionContext(entity));
+}
+
+// Moves `entity` from `from` along `delta` and stops at the first contact.
+// Returns the fraction of `delta` travelled (1 = no contact).
+export function sweepTranslation(ctx, from, delta) {
+  const place = (t) => setWorldPosition(ctx.entity, from.clone().addScaledVector(delta, t));
+  const length = delta.length();
+  if (length < 1e-9) return 1;
+  place(0);
+  // Broad phase: the swept bounds of the moving solids.
+  const swept = new T.Box3();
+  for (const m of ctx.moving) {
+    const b = bounds(colliderOf(m));
+    swept.union(b).union(b.clone().translate(delta));
+  }
+  const cameraBox = new T.Box3().setFromCenterAndSize(camera.position, new T.Vector3(1, 1, 1).multiplyScalar(2 * CAMERA_RADIUS));
+  const candidates = ctx.obstacles.filter((o) => o.box.intersectsBox(swept));
+  if (!candidates.length && !swept.intersectsBox(cameraBox) && swept.min.y >= FLOOR_Y) {
+    place(1);
+    return 1;
+  }
+  const steps = Math.max(1, Math.ceil(length / SWEEP_STEP));
+  let safe = 0;
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    place(t);
+    if (!contactAt(ctx, candidates)) {
+      safe = t;
+      continue;
+    }
+    let lo = safe,
+      hi = t;
+    for (let k = 0; k < BISECT; k++) {
+      const mid = (lo + hi) / 2;
+      place(mid);
+      if (contactAt(ctx, candidates)) hi = mid;
+      else lo = mid;
+    }
+    place(lo);
+    return lo;
+  }
+  return 1;
+}
+
+// Drag motion with sliding: whatever the contact blocks is retried along each world axis,
+// so a part pushed against a surface glides along it instead of sticking.
+export function moveWithSlide(entity, from, delta) {
+  const ctx = collisionContext(entity);
+  ignoreStartingContacts(ctx);
+  const t = sweepTranslation(ctx, from, delta);
+  if (t < 1) {
+    const rest = delta.clone().multiplyScalar(1 - t),
+      axes = ["x", "y", "z"].sort((a, b) => Math.abs(rest[b]) - Math.abs(rest[a]));
+    for (const axis of axes) {
+      if (Math.abs(rest[axis]) < 1e-4) continue;
+      const step = new T.Vector3();
+      step[axis] = rest[axis];
+      sweepTranslation(ctx, entity.getWorldPosition(new T.Vector3()), step);
+    }
+  }
+  return entity.getWorldPosition(new T.Vector3()).distanceTo(from) > 1e-9;
+}
+
+// Lowest point of the moving solids below the table surface (0 if none).
+function floorPenetration(ctx) {
+  ctx.entity.updateWorldMatrix(true, true);
+  let lowest = Infinity;
+  for (const m of ctx.moving) lowest = Math.min(lowest, bounds(colliderOf(m)).min.y);
+  return Math.max(0, FLOOR_Y - lowest);
+}
+
+// Applies `turn(entity)` in small increments. A part tilted into the table is lifted just
+// enough to rest on it; contact with any other solid cancels the whole rotation.
+export function rotateChecked(entity, increments, turn) {
+  const ctx = collisionContext(entity);
+  ignoreStartingContacts(ctx);
+  const before = entity.quaternion.clone(),
+    beforePosition = entity.position.clone();
+  for (let i = 0; i < increments; i++) {
+    turn(entity);
+    const lift = floorPenetration(ctx);
+    if (lift > 0) setWorldPosition(entity, entity.getWorldPosition(new T.Vector3()).add(new T.Vector3(0, lift + 1e-4, 0)));
+    if (contactAt(ctx)) {
+      entity.quaternion.copy(before);
+      entity.position.copy(beforePosition);
+      entity.updateWorldMatrix(true, true);
+      return false;
+    }
   }
   return true;
 }

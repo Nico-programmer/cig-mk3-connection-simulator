@@ -132,6 +132,48 @@ export function armLength(target, dir, length) {
   return length;
 }
 
+// ---- Free flight (W/A/S/D move, Q down, E up) ----
+// Moves camera and orbit target together, so the mouse keeps orbiting around the new point.
+// The target is kept inside FLY_LIMITS; the camera guard still keeps the camera out of solids.
+export const FLY_SPEED = 9; // units per second
+export const FLY_LIMITS = { x: 28, z: 28, yMin: -0.1, yMax: 18 };
+const flyKeys = new Set();
+const FLY_CODES = ["KeyW", "KeyA", "KeyS", "KeyD", "KeyQ", "KeyE"];
+window.addEventListener("keydown", (e) => {
+  if (!FLY_CODES.includes(e.code) || e.ctrlKey || e.metaKey || e.altKey) return;
+  const tag = e.target?.tagName;
+  if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+  flyKeys.add(e.code);
+});
+window.addEventListener("keyup", (e) => flyKeys.delete(e.code));
+window.addEventListener("blur", () => flyKeys.clear());
+
+export function flyCamera(dt) {
+  if (!flyKeys.size || S.cameraMotion) return;
+  const forward = controls.target.clone().sub(camera.position);
+  forward.y = 0;
+  if (forward.lengthSq() < 1e-8) forward.set(0, 0, -1);
+  forward.normalize();
+  const right = new T.Vector3().crossVectors(forward, new T.Vector3(0, 1, 0));
+  const move = new T.Vector3();
+  if (flyKeys.has("KeyW")) move.add(forward);
+  if (flyKeys.has("KeyS")) move.sub(forward);
+  if (flyKeys.has("KeyD")) move.add(right);
+  if (flyKeys.has("KeyA")) move.sub(right);
+  if (flyKeys.has("KeyE")) move.y += 1;
+  if (flyKeys.has("KeyQ")) move.y -= 1;
+  if (move.lengthSq() === 0) return;
+  move.normalize().multiplyScalar(FLY_SPEED * Math.min(dt, 1 / 20));
+  const next = controls.target.clone().add(move);
+  next.x = Math.max(-FLY_LIMITS.x, Math.min(FLY_LIMITS.x, next.x));
+  next.z = Math.max(-FLY_LIMITS.z, Math.min(FLY_LIMITS.z, next.z));
+  next.y = Math.max(FLY_LIMITS.yMin, Math.min(FLY_LIMITS.yMax, next.y));
+  const applied = next.sub(controls.target);
+  controls.target.add(applied);
+  camera.position.add(applied);
+  S.returnView = null;
+}
+
 export function guardCamera() {
   const target = controls.target,
     desired = camera.position.clone(),

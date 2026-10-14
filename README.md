@@ -41,7 +41,7 @@ One suite at a time: `node tests/rope.test.mjs`. The tests use a simulated rende
 - Preserve the CAN continuity sequence: end-to-end, screen–middle, EM–middle. No diagnosis, score or action verdict is shown.
 - Camera sensitivity: rotate 1.65, zoom 1.8, pan 1.6. Part drag multiplier 1.35; wheel depth multiplier 0.016.
 - Click **Hitboxes** to show/hide the actual oriented collision boxes. This is a debugging display, not diagnostic feedback.
-- Background drag orbits; right drag pans; wheel zooms; double-click inspects; Escape returns. Press **I** for scenario setup. ES / EN switches language.
+- Background drag orbits; right drag pans; wheel zooms; double-click inspects; Escape returns. **W/A/S/D** fly the camera forward/left/back/right, **E** up and **Q** down, within fixed limits. Press **I** for scenario setup. ES / EN switches language.
 - Replace parts by disconnecting them, moving them away and connecting their spares.
 
 ## Source authority and accepted decisions
@@ -133,9 +133,9 @@ The unsecured-joint lesson interrupts CAN at the joint bridge only, preserving v
 These are learning-only cases explicitly requested by the user; no random evaluator or instructor setup is added. Existing F1–F12 circuit semantics and the prior lower-harness example are retained. Tests verify both segment passes/end-to-end failure, continued 12 V supply/normal EM LED, different reseating outcomes, physical harness replacement, replacement pin highlighting and repeat/reset behavior. WebGL rendering remains unverified.
 
 
-## Current state (1.19)
+## Current state (1.20)
 - **Collision:** one rigid body per part, 79 boxes (77 hardware + the two meter plugs). Moves are swept with bisection and slide along surfaces; rotations are checked and lift off the table when only the table is in the way. Mated connectors and a probe on the pin it measures are the only exemptions.
-- **Camera:** goes exactly where orbit and zoom put it; it slides toward the target only when that point would be inside a solid. Transitions last 1 s, also on lesson changes.
+- **Camera:** goes exactly where orbit and zoom put it; it slides toward the target only when that point would be inside a solid. Transitions last 1 s, also on lesson changes. W/A/S/D/Q/E move camera and orbit target together (free flight, limits in `FLY_LIMITS`).
 - **Cables:** meter leads, the four harness cables and the six bypass wires are physical ropes (`rope.js`): gravity, fixed length with automatic slack, collision with the hardware, the trays and each other, sleep when still. Cables never block parts; a connector or probe stops at the reach of its cable.
 - **Unchanged since 1.0:** electrical model, lessons, meter readings, connection logic, part geometry and pins.
 
@@ -284,3 +284,13 @@ Removed code that nothing used any more:
 - Unused imports in `view.js`, `movement.js` and `collision.js`.
 
 Tests: the tube-buffer check in `drag-performance.test.mjs` went with `updateTube`; the lead-clearance check in `interaction.test.mjs` now reads the rope directly. Documentation: this section, "Current state" above, the module map in `dist/app/README.md`, `LEEME-RESPALDO.md` (how to run and test 1.19) and a note on `QA-NOTES.md` that it describes v16.
+
+## 1.20: free-flight camera
+New keyboard movement, in `app/view.js` (`flyCamera`, called each frame from `app/loop.js` before `controls.update()`). No other behaviour changes.
+
+- **Keys:** W/A/S/D move forward, left, back and right relative to the view direction (horizontal plane); E rises and Q descends. Speed `FLY_SPEED` (9 units/s), diagonals normalised, frame time capped at 1/20 s.
+- **Orbit:** camera and orbit target move by the same offset, so mouse orbit, pan and zoom keep working around the new point.
+- **Limits:** the target stays within x/z ±28 and y from −0.1 to 18 (`FLY_LIMITS`). The 1.15 camera guard still keeps the camera out of solids and above the table.
+- **Ignored when:** a camera transition is running, focus is in an input/select, or Ctrl/Alt/Meta is held. Losing window focus releases all keys.
+- **No conflicts:** part rotation uses the arrow keys; Escape and I are unchanged. Flying clears the stored Escape return view.
+- **Verification:** syntax check and `drag-performance` pass; flight itself needs a browser session (not covered by the mocked-renderer suites).

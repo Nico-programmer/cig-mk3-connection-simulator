@@ -1,6 +1,6 @@
-# MK3 Lab — versión 1.19
+# MK3 Lab — versión 1.20
 
-Proyecto completo del simulador con su historial git (una etiqueta por versión, de 1.0 a 1.19). La 1.0 es la v16 original de Astra; las versiones 1.x reconstruyeron las colisiones, la cámara y los cables sin cambiar la parte eléctrica, las lecciones ni el multímetro.
+Proyecto completo del simulador con su historial git (una etiqueta por versión, de 1.0 a 1.20). La 1.0 es la v16 original de Astra; las versiones 1.x reconstruyeron las colisiones, la cámara y los cables sin cambiar la parte eléctrica, las lecciones ni el multímetro.
 
 Incluye HTML, JavaScript, CSS, Three.js local con su licencia, configuración de hosting, pruebas, documentación y los documentos e imágenes de referencia. No necesita npm ni CDN para ejecutarse.
 

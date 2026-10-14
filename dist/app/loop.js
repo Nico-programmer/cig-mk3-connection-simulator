@@ -13,7 +13,7 @@ import { updateHarnesses } from "./cables.js";
 import { updateBypassRopes } from "./bypass.js";
 import { paintScreen } from "./screens.js";
 import { V, tr } from "./util.js";
-import { flyCamera, guardCamera, restoreCameraDesired } from "./view.js";
+import { flyCamera, guardCamera, holdFlyPosition, restoreCameraDesired } from "./view.js";
 import { S } from "./state.js";
 
 let lastFrameMs = null;
@@ -28,6 +28,7 @@ export function animate(ms) {
   restoreCameraDesired();
   flyCamera(lastFrameMs === null ? 1 / 60 : Math.max(0, ms - lastFrameMs) / 1000);
   controls.update();
+  holdFlyPosition();
   if (S.cameraMotion) {
     const motion = S.cameraMotion,
       t = Math.min(1, (ms - motion.start) / motion.duration),

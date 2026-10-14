@@ -288,9 +288,10 @@ Tests: the tube-buffer check in `drag-performance.test.mjs` went with `updateTub
 ## 1.20: free-flight camera
 New keyboard movement, in `app/view.js` (`flyCamera`, called each frame from `app/loop.js` before `controls.update()`). No other behaviour changes.
 
-- **Keys:** W/A/S/D move forward, left, back and right relative to the view direction (horizontal plane); E rises and Q descends. Speed `FLY_SPEED` (9 units/s), diagonals normalised, frame time capped at 1/20 s.
+- **Keys:** W/A/S/D move forward, left, back and right relative to the heading the camera had when the first key went down (horizontal plane, locked while any key is held); E rises and Q descends. Speed `FLY_SPEED` (9 units/s), diagonals normalised, frame time capped at 1/20 s.
 - **Orbit:** camera and orbit target move by the same offset, so mouse orbit, pan and zoom keep working around the new point.
-- **Limits:** the target stays within x/z ±28 and y from −0.1 to 18 (`FLY_LIMITS`). The 1.15 camera guard still keeps the camera out of solids and above the table.
+- **Mouse while walking:** the heading does not follow the mouse, and the camera does not orbit away from its path: `holdFlyPosition` (called right after `controls.update()`) puts the camera back on its position and carries the target along, so the mouse only changes where you look. Height changes only with Q/E. With no key held, orbit is the usual one.
+- **Limits:** the camera stays within x/z ±28 and y from −0.1 to 18 (`FLY_LIMITS`). The 1.15 camera guard still keeps the camera out of solids and above the table.
 - **Ignored when:** a camera transition is running, focus is in an input/select, or Ctrl/Alt/Meta is held. Losing window focus releases all keys.
 - **No conflicts:** part rotation uses the arrow keys; Escape and I are unchanged. Flying clears the stored Escape return view.
 - **Verification:** syntax check and `drag-performance` pass; flight itself needs a browser session (not covered by the mocked-renderer suites).

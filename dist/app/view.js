@@ -134,26 +134,40 @@ export function armLength(target, dir, length) {
 
 // ---- Free flight (W/A/S/D move, Q down, E up) ----
 // Moves camera and orbit target together, so the mouse keeps orbiting around the new point.
-// The target is kept inside FLY_LIMITS; the camera guard still keeps the camera out of solids.
+// The camera is kept inside FLY_LIMITS; the camera guard still keeps the camera out of solids.
 export const FLY_SPEED = 9; // units per second
 export const FLY_LIMITS = { x: 28, z: 28, yMin: -0.1, yMax: 18 };
+// While a key is held the heading is locked (taken when the first key goes down) and the
+// mouse looks around from where the camera is: the camera does not orbit away from its path.
 const flyKeys = new Set();
 const FLY_CODES = ["KeyW", "KeyA", "KeyS", "KeyD", "KeyQ", "KeyE"];
+let flyHeading = null; // unit vector on the horizontal plane
+let flyAnchor = null; // camera position this frame, restored after the orbit controls
 window.addEventListener("keydown", (e) => {
   if (!FLY_CODES.includes(e.code) || e.ctrlKey || e.metaKey || e.altKey) return;
   const tag = e.target?.tagName;
   if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
   flyKeys.add(e.code);
 });
-window.addEventListener("keyup", (e) => flyKeys.delete(e.code));
-window.addEventListener("blur", () => flyKeys.clear());
+window.addEventListener("keyup", (e) => {
+  flyKeys.delete(e.code);
+  if (!flyKeys.size) flyHeading = null;
+});
+window.addEventListener("blur", () => {
+  flyKeys.clear();
+  flyHeading = null;
+});
 
 export function flyCamera(dt) {
+  flyAnchor = null;
   if (!flyKeys.size || S.cameraMotion) return;
-  const forward = controls.target.clone().sub(camera.position);
-  forward.y = 0;
-  if (forward.lengthSq() < 1e-8) forward.set(0, 0, -1);
-  forward.normalize();
+  if (!flyHeading) {
+    flyHeading = controls.target.clone().sub(camera.position);
+    flyHeading.y = 0;
+    if (flyHeading.lengthSq() < 1e-8) flyHeading.set(0, 0, -1);
+    flyHeading.normalize();
+  }
+  const forward = flyHeading;
   const right = new T.Vector3().crossVectors(forward, new T.Vector3(0, 1, 0));
   const move = new T.Vector3();
   if (flyKeys.has("KeyW")) move.add(forward);
@@ -164,14 +178,24 @@ export function flyCamera(dt) {
   if (flyKeys.has("KeyQ")) move.y -= 1;
   if (move.lengthSq() === 0) return;
   move.normalize().multiplyScalar(FLY_SPEED * Math.min(dt, 1 / 20));
-  const next = controls.target.clone().add(move);
+  const next = camera.position.clone().add(move);
   next.x = Math.max(-FLY_LIMITS.x, Math.min(FLY_LIMITS.x, next.x));
   next.z = Math.max(-FLY_LIMITS.z, Math.min(FLY_LIMITS.z, next.z));
   next.y = Math.max(FLY_LIMITS.yMin, Math.min(FLY_LIMITS.yMax, next.y));
-  const applied = next.sub(controls.target);
+  const applied = next.sub(camera.position);
   controls.target.add(applied);
   camera.position.add(applied);
+  flyAnchor = camera.position.clone();
   S.returnView = null;
+}
+
+// Call right after controls.update(): the orbit moved the camera around the target; put the
+// camera back on its path and carry the target along, so the mouse only changes where it looks.
+export function holdFlyPosition() {
+  if (!flyAnchor) return;
+  controls.target.add(flyAnchor.clone().sub(camera.position));
+  camera.position.copy(flyAnchor);
+  camera.lookAt(controls.target);
 }
 
 export function guardCamera() {

@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MK3 · prueba de modelo</title>
+<style>
+  :root { --bg:#101820; --panel:#17232d; --fg:#dfe8ee; --muted:#8fa3b0; --accent:#1abcb8; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--fg); font:14px system-ui, sans-serif; overflow:hidden; }
+  canvas#view { display:block; width:100%; height:100%; }
+  #ui { position:fixed; top:12px; left:12px; width:260px; max-height:calc(100% - 24px); overflow:auto;
+        background:var(--panel); border:1px solid #2a3a46; border-radius:8px; padding:12px; box-sizing:border-box; }
+  #ui h1 { font-size:15px; margin:0 0 8px; }
+  #ui h2 { font-size:12px; margin:12px 0 6px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
+  #ui button { background:#22333f; color:var(--fg); border:1px solid #34495a; border-radius:6px; padding:6px 8px; margin:0 4px 4px 0; cursor:pointer; }
+  #ui button.on { background:var(--accent); color:#06202a; border-color:var(--accent); }
+  #ui label { display:flex; align-items:center; gap:8px; margin:4px 0; }
+  #ui input[type=range] { flex:1; }
+  #ui output { width:44px; text-align:right; color:var(--muted); font-variant-numeric:tabular-nums; }
+  #msg { color:var(--muted); font-size:12px; margin-top:8px; }
+</style>
+<script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
+</head>
+<body>
+<canvas id="view"></canvas>
+<div id="ui">
+  <h1>MK3 · prueba de modelo</h1>
+  <h2>Estado de la pantalla</h2>
+  <div id="states">
+    <button data-s="off">Apagada</button>
+    <button data-s="wait">Esperando EM</button>
+    <button data-s="login">Normal (login)</button>
+  </div>
+  <h2>Vista</h2>
+  <div id="views">
+    <button data-v="front">Frente (pantalla)</button>
+    <button data-v="back">Trasera (conectores)</button>
+    <button data-v="iso">3/4 frente</button>
+    <button data-v="isoBack">3/4 trasera</button>
+  </div>
+  <label><input type="checkbox" id="showPins" checked> Marcar pines y puertos</label>
+  <label><input type="checkbox" id="showBox"> Caja del modelo</label>
+  <h2>Pantalla (plano sobre el modelo)</h2>
+  <label>x <input type="range" id="sx" min="-0.5" max="0.5" step="0.005"><output></output></label>
+  <label>y <input type="range" id="sy" min="-0.5" max="0.5" step="0.005"><output></output></label>
+  <label>ancho <input type="range" id="sw" min="0.8" max="1.9" step="0.005"><output></output></label>
+  <label>z <input type="range" id="sz" min="0.1" max="0.5" step="0.001"><output></output></label>
+  <div id="msg">Cargando modelo…</div>
+</div>
+<script type="module">
+import * as T from 'three';
+import { OrbitControls } from './vendor/OrbitControls.js';
+import { GLTFLoader } from './vendor/loaders/GLTFLoader.js';
+import { DRACOLoader } from './vendor/loaders/DRACOLoader.js';
+
+// ---- Datos a calibrar (unidades del modelo: ancho 1.9, alto 1.28, fondo 0.62) ----
+const CFG = {
+  model: './public/mk3-ligero.glb',
+  login: './public/logo-login-mk3.png',
+  // Plano de la pantalla: en este modelo la pantalla mira hacia -z y los conectores hacia +z.
+  screen: { x: 0, y: 0, w: 1.74, z: -0.312, aspect: 800 / 480 },
+  // Imagen trasera de referencia: 706 x 463 px. Se convierte a coordenadas del modelo.
+  rearImage: { w: 706, h: 463 },
+  // Conector principal de 12 pines (px de la imagen trasera). Fila superior 6..1, inferior 7..12 (vista de frente).
+  pinsTop: { y: 258, xs: [282, 308, 334, 360, 386, 412], numbers: [6, 5, 4, 3, 2, 1] },
+  pinsBottom: { y: 288, xs: [282, 308, 334, 360, 386, 412], numbers: [7, 8, 9, 10, 11, 12] },
+  cameraPort: { x: 355, y: 158 },
+  rearZ: 0.309,
+};
+const params = new URLSearchParams(location.search);
+
+const canvas = document.getElementById('view');
+const renderer = new T.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.outputColorSpace = T.SRGBColorSpace;
+const scene = new T.Scene();
+scene.background = new T.Color(0x101820);
+const camera = new T.PerspectiveCamera(40, 1, 0.05, 100);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+scene.add(new T.HemisphereLight(0xffffff, 0x334455, 1.4));
+const sun = new T.DirectionalLight(0xffffff, 2.2);
+sun.position.set(2, 3, 4);
+scene.add(sun);
+const back = new T.DirectionalLight(0x99aacc, 1.0);
+back.position.set(-2, 1, -4);
+scene.add(back);
+const grid = new T.GridHelper(6, 12, 0x2a3a46, 0x1d2a34);
+grid.position.y = -0.9;
+scene.add(grid);
+
+const holder = new T.Group();
+scene.add(holder);
+
+// ---- Pantalla: lienzo con los tres estados ----
+const sc = document.createElement('canvas');
+sc.width = 800; sc.height = 480;
+const sctx = sc.getContext('2d');
+const screenTex = new T.CanvasTexture(sc);
+screenTex.colorSpace = T.SRGBColorSpace;
+const loginImg = new Image();
+let loginReady = false;
+loginImg.onload = () => { loginReady = true; };
+loginImg.src = CFG.login;
+let state = params.get('state') || 'wait';
+
+function drawScreen(time) {
+  const ctx = sctx, W = sc.width, H = sc.height;
+  if (state === 'off') {
+    ctx.fillStyle = '#05090c';
+    ctx.fillRect(0, 0, W, H);
+  } else {
+    if (loginReady) ctx.drawImage(loginImg, 0, 0, W, H);
+    else { ctx.fillStyle = '#1f4553'; ctx.fillRect(0, 0, W, H); }
+    if (state === 'wait') {
+      ctx.fillStyle = '#2a5673';
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 34px Arial, sans-serif';
+      ctx.fillText('Please wait while we connect', W / 2, 78);
+      ctx.fillText('to the expansion module', W / 2, 122);
+      // Círculo de 8 puntos blancos; el tamaño decrece en sentido contrario al giro.
+      const cx = W / 2, cy = 290, R = 62, n = 8, head = (time * 3.2) % n;
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2 - Math.PI / 2;
+        const behind = (head - i + n) % n;
+        const r = 5 + 15 * Math.pow(1 - behind / n, 1.6);
+        ctx.beginPath();
+        ctx.arc(cx + Math.cos(a) * R, cy + Math.sin(a) * R, r, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+      }
+    }
+  }
+  screenTex.needsUpdate = true;
+}
+
+const screenMesh = new T.Mesh(
+  new T.PlaneGeometry(1, 1),
+  new T.MeshBasicMaterial({ map: screenTex, toneMapped: false })
+);
+holder.add(screenMesh);
+function placeScreen() {
+  const s = CFG.screen;
+  screenMesh.scale.set(s.w, s.w / s.aspect, 1);
+  screenMesh.position.set(s.x, s.y, s.z);
+  screenMesh.rotation.y = s.z < 0 ? Math.PI : 0;
+}
+
+// ---- Marcadores de pines y puertos (cara trasera) ----
+const markers = new T.Group();
+holder.add(markers);
+function labelSprite(text, color) {
+  const c = document.createElement('canvas');
+  c.width = 64; c.height = 64;
+  const x = c.getContext('2d');
+  x.fillStyle = 'rgba(0,0,0,.65)';
+  x.beginPath(); x.arc(32, 32, 28, 0, Math.PI * 2); x.fill();
+  x.fillStyle = color; x.font = 'bold 32px Arial'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.fillText(text, 32, 34);
+  const t = new T.CanvasTexture(c);
+  t.colorSpace = T.SRGBColorSpace;
+  return new T.Sprite(new T.SpriteMaterial({ map: t, depthTest: false, transparent: true }));
+}
+function fromImage(px, py) {
+  // Vista trasera (se mira hacia -z desde +z): la izquierda de la imagen es -x del modelo.
+  const u = (px / CFG.rearImage.w - 0.5) * 1.9;
+  const v = (0.5 - py / CFG.rearImage.h) * 1.28;
+  return new T.Vector3(u, v, CFG.rearZ + 0.01);
+}
+function buildMarkers() {
+  markers.clear();
+  for (const row of [CFG.pinsTop, CFG.pinsBottom]) {
+    row.xs.forEach((px, i) => {
+      const dot = new T.Mesh(new T.SphereGeometry(0.012, 12, 12), new T.MeshBasicMaterial({ color: 0xffd23f, depthTest: false }));
+      dot.position.copy(fromImage(px, row.y));
+      dot.renderOrder = 10;
+      markers.add(dot);
+      const s = labelSprite(String(row.numbers[i]), '#ffd23f');
+      s.position.copy(dot.position).add(new T.Vector3(0, 0, 0.02));
+      s.scale.setScalar(0.06);
+      s.renderOrder = 11;
+      markers.add(s);
+    });
+  }
+  const cam = new T.Mesh(new T.RingGeometry(0.05, 0.065, 32), new T.MeshBasicMaterial({ color: 0x1abcb8, depthTest: false, side: T.DoubleSide }));
+  cam.position.copy(fromImage(CFG.cameraPort.x, CFG.cameraPort.y));
+  cam.renderOrder = 10;
+  markers.add(cam);
+}
+
+// ---- Carga del modelo ----
+const draco = new DRACOLoader();
+draco.setDecoderPath('./vendor/libs/draco/gltf/');
+const loader = new GLTFLoader();
+loader.setDRACOLoader(draco);
+const msg = document.getElementById('msg');
+let box = null;
+loader.load(
+  CFG.model,
+  (gltf) => {
+    holder.add(gltf.scene);
+    const b = new T.Box3().setFromObject(gltf.scene);
+    const size = b.getSize(new T.Vector3());
+    let tris = 0;
+    gltf.scene.traverse((o) => { if (o.isMesh) tris += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3; });
+    box = new T.Box3Helper(b, 0xff5577);
+    box.visible = false;
+    scene.add(box);
+    msg.textContent = `Modelo cargado · ${Math.round(tris).toLocaleString()} triángulos · ` +
+      `${size.x.toFixed(2)} × ${size.y.toFixed(2)} × ${size.z.toFixed(2)}`;
+    document.title = 'ready';
+  },
+  undefined,
+  (err) => { msg.textContent = 'Error al cargar el modelo: ' + (err?.message || err); document.title = 'error'; }
+);
+
+// ---- Interfaz ----
+function setView(v) {
+  const d = 3.4;
+  const pos = { front: [0, 0, -d], back: [0, 0, d], iso: [2.1, 1.2, -2.6], isoBack: [2.1, 1.2, 2.6] }[v] || [0, 0, -d];
+  camera.position.set(...pos);
+  controls.target.set(0, 0, 0);
+  controls.update();
+  for (const b of document.querySelectorAll('#views button')) b.classList.toggle('on', b.dataset.v === v);
+}
+function setState(s) {
+  state = s;
+  for (const b of document.querySelectorAll('#states button')) b.classList.toggle('on', b.dataset.s === s);
+}
+document.getElementById('states').onclick = (e) => e.target.dataset.s && setState(e.target.dataset.s);
+document.getElementById('views').onclick = (e) => e.target.dataset.v && setView(e.target.dataset.v);
+document.getElementById('showPins').onchange = (e) => { markers.visible = e.target.checked; };
+document.getElementById('showBox').onchange = (e) => { if (box) box.visible = e.target.checked; };
+for (const [id, key] of [['sx', 'x'], ['sy', 'y'], ['sw', 'w'], ['sz', 'z']]) {
+  const input = document.getElementById(id), out = input.nextElementSibling;
+  input.value = CFG.screen[key];
+  out.textContent = Number(input.value).toFixed(3);
+  input.oninput = () => { CFG.screen[key] = Number(input.value); out.textContent = Number(input.value).toFixed(3); placeScreen(); };
+}
+function resize() {
+  renderer.setSize(innerWidth, innerHeight, false);
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize);
+if (params.has('ui') && params.get('ui') === '0') document.getElementById('ui').style.display = 'none';
+if (params.get('pins') === '0') { markers.visible = false; document.getElementById('showPins').checked = false; }
+buildMarkers();
+placeScreen();
+resize();
+setState(state);
+setView(params.get('view') || 'front');
+renderer.setAnimationLoop((ms) => {
+  drawScreen(ms / 1000);
+  controls.update();
+  renderer.render(scene, camera);
+});
+</script>
+</body>
+</html>

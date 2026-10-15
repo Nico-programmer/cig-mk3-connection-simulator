@@ -1,3 +1,4 @@
+import {pathToFileURL} from "node:url";
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -15,9 +16,9 @@ let fakeNow=1000;
 Object.defineProperty(globalThis,'performance',{value:{now:()=>fakeNow},configurable:true,writable:true});
 const realNow=()=>Number(process.hrtime.bigint())/1e6;
 const {loadApp}=await import('./support/load-app.mjs');const app=await loadApp(temp);
-const cables=await import(path.join(temp,'dist/app/cables.js'));
-const rope=await import(path.join(temp,'dist/app/rope.js'));
-const T=await import(path.join(temp,'dist/vendor/three.module.js'));
+const cables=await import(pathToFileURL(path.join(temp,'dist/app/cables.js')).href);
+const rope=await import(pathToFileURL(path.join(temp,'dist/app/rope.js')).href);
+const T=await import(pathToFileURL(path.join(temp,'dist/vendor/three.module.js')).href);
 const assert=(ok,msg)=>{if(!ok)throw new Error(msg);console.log('PASS',msg);};
 const check=(ok,msg)=>{if(!ok)throw new Error(msg);};
 const frames=(n)=>{for(let k=0;k<n;k++){fakeNow+=16;app.animate(fakeNow);}};

@@ -1,3 +1,4 @@
+import {pathToFileURL} from "node:url";
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -15,8 +16,8 @@ let fakeNow=1000;
 Object.defineProperty(globalThis,'performance',{value:{now:()=>fakeNow},configurable:true,writable:true});
 const realNow=()=>Number(process.hrtime.bigint())/1e6;
 const {loadApp}=await import('./support/load-app.mjs');const app=await loadApp(temp);
-const bypass=await import(path.join(temp,'dist/app/bypass.js'));
-const T=await import(path.join(temp,'dist/vendor/three.module.js'));
+const bypass=await import(pathToFileURL(path.join(temp,'dist/app/bypass.js')).href);
+const T=await import(pathToFileURL(path.join(temp,'dist/vendor/three.module.js')).href);
 const assert=(ok,msg)=>{if(!ok)throw new Error(msg);console.log('PASS',msg);};
 const frames=(n)=>{for(let k=0;k<n;k++){fakeNow+=16;app.animate(fakeNow);}};
 const ropes=()=>[...app.parts.filter(p=>p.rope).map(p=>[p.id,p.rope]),['red lead',app.probeTools[0].lead],['black lead',app.probeTools[1].lead],...bypass.bypassRopes.map((r,i)=>['bypass '+i,r])];

@@ -1,3 +1,4 @@
+import {pathToFileURL} from "node:url";
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -15,7 +16,7 @@ let fakeNow=1000;
 Object.defineProperty(globalThis,'performance',{value:{now:()=>fakeNow},configurable:true,writable:true});
 const realNow=()=>Number(process.hrtime.bigint())/1e6;
 const {loadApp}=await import('./support/load-app.mjs');const app=await loadApp(temp);
-const probes=await import(path.join(temp,'dist/app/probes.js'));
+const probes=await import(pathToFileURL(path.join(temp,'dist/app/probes.js')).href);
 const assert=(ok,msg)=>{if(!ok)throw new Error(msg);console.log('PASS',msg);};
 const check=(ok,msg)=>{if(!ok)throw new Error(msg);};
 const frame=()=>{fakeNow+=16;app.animate(fakeNow);};

@@ -30,6 +30,7 @@ export function buildScenario(code = "assembly", segment = "upper") {
   controls.enabled = true;
   for (const child of [...dynamic.children]) {
     child.traverse((m) => {
+      if (m.userData.sharedModel) return; // the MK3 model's geometry and textures are shared
       m.geometry?.dispose();
       if (m.material) {
         for (const mat of Array.isArray(m.material) ? m.material : [m.material]) {

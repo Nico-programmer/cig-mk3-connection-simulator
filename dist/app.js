@@ -11,8 +11,11 @@ import "./app/ui.js";
 import "./app/hitboxes.js";
 import "./app/overlays.js";
 import "./app/loop.js";
+import { loadMk3Model } from "./app/model-mk3.js";
 import { buildScenario } from "./app/scenario.js";
 import { animate } from "./app/loop.js";
 
+// The realistic MK3 model (when available) must be ready before the first bench is built.
+await loadMk3Model();
 buildScenario();
 requestAnimationFrame(animate);

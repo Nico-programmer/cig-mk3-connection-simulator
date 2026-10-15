@@ -1,3 +1,4 @@
+import {pathToFileURL} from "node:url";
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -12,7 +13,7 @@ class Element{constructor(tag='div'){this.tagName=tag.toUpperCase();this.style={
 const els={};globalThis.document={createElement:t=>new Element(t),getElementById:id=>els[id]??(els[id]=new Element()),documentElement:{dataset:{}},addEventListener(){},removeEventListener(){}};els.segment=new Element();els.segment.options=[{},{}];els.segment.value='upper';globalThis.window={addEventListener(){},removeEventListener(){}};globalThis.innerWidth=1280;globalThis.innerHeight=800;globalThis.devicePixelRatio=1;globalThis.requestAnimationFrame=()=>{};globalThis.FakeRenderer=class{constructor(){this.domElement=new Element('canvas');this.shadowMap={};}setPixelRatio(){}setSize(){}render(){}};
 els.swapVariant=new Element('select');els.swapVariant.options=[{},{}];
 const {loadApp}=await import('./support/load-app.mjs');const app=await loadApp(temp);
-const T=await import(path.join(temp,'dist/vendor/three.module.js'));
+const T=await import(pathToFileURL(path.join(temp,'dist/vendor/three.module.js')).href);
 const assert=(ok,msg)=>{if(!ok)throw new Error(msg);console.log('PASS',msg);};
 const check=(ok,msg)=>{if(!ok)throw new Error(msg);};
 // ---- global invariant: no two rigid bodies overlap (mated hulls and a measuring probe tip excepted) ----

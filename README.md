@@ -295,3 +295,12 @@ New keyboard movement, in `app/view.js` (`flyCamera`, called each frame from `ap
 - **Ignored when:** a camera transition is running, focus is in an input/select, or Ctrl/Alt/Meta is held. Losing window focus releases all keys.
 - **No conflicts:** part rotation uses the arrow keys; Escape and I are unchanged. Flying clears the stored Escape return view.
 - **Verification:** syntax check and `drag-performance` pass; flight itself needs a browser session (not covered by the mocked-renderer suites).
+
+## 1.21: realistic MK3 model (test)
+The MK3 body is the Meshy model `dist/public/mk3-ligero.glb` (480k triangles, Draco + WebP) instead of boxes. It carries no usable pins, so the pins, the 12-pin port, the camera port and all colliders stay the procedural objects of 1.20; only their visuals change.
+
+- **Loading:** `app/model-mk3.js` loads the model and `public/logo-login-mk3.png` once, before the first bench is built (`app.js` awaits it, 8 s timeout). Each MK3 uses a clone that shares geometry and material; `buildScenario` does not dispose them. Not served over http(s), `?model=0` or a load error keep the 1.20 procedural body, which is what the Node test suites exercise.
+- **Placement:** scale 2.12/1.28 (body 3.15 × 2.12, same as before), turned π so the screen faces +z. The rigid body box is 1.03 deep (the model's depth). The 12-pin port sits on the recess of `cara-mk3-pines.png` (0.027, 0.96, −0.8), flush with the rear face; the camera port above it. The connector is about twice the size of the real recess on purpose (probe reach; see 1.17.1).
+- **Screen** (800×480, plane 1.74 wide on the model's front, calibrated in `dist/model-test.html`): off = black; no Expansion Module = "Please wait while we connect to the Expansion Module" with the 8-dot spinner (ES/EN); powered and normal = `logo-login-mk3.png`.
+- **Picking:** the model's mesh never raycasts; the invisible body box does.
+- **Verification:** the 1.20 suites pass without the model (fallback path). The realistic path was checked in Edge: model, screen states and rear connector render; the 12 test suites do not render WebGL.

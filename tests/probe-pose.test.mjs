@@ -1,3 +1,4 @@
+import {pathToFileURL} from "node:url";
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -13,10 +14,10 @@ const els={};globalThis.document={createElement:t=>new Element(t),getElementById
 els.swapVariant=new Element('select');els.swapVariant.options=[{},{}];
 const {loadApp}=await import('./support/load-app.mjs');const app=await loadApp(temp);
 const assert=(ok,msg)=>{if(!ok)throw new Error(msg);};
-const {segmentHitsSolid}=await import(path.join(temp,'dist/collision.js'));
-const T=await import(path.join(temp,'dist/vendor/three.module.js'));
-const probes=await import(path.join(temp,'dist/app/probes.js'));
-const {S}=await import(path.join(temp,'dist/app/state.js'));
+const {segmentHitsSolid}=await import(pathToFileURL(path.join(temp,'dist/collision.js')).href);
+const T=await import(pathToFileURL(path.join(temp,'dist/vendor/three.module.js')).href);
+const probes=await import(pathToFileURL(path.join(temp,'dist/app/probes.js')).href);
+const {S}=await import(pathToFileURL(path.join(temp,'dist/app/state.js')).href);
 // Reference: the 1.0 (v16) probePose, without the reach filter.
 function referencePose(contact,clearance=0.04){
   const {port,n}=contact,pin=port.pins.find(p=>p.userData.pin.n===n),V=(x=0,y=0,z=0)=>new T.Vector3(x,y,z);
@@ -49,7 +50,7 @@ console.log('PASS probePose/probeTargetPosition identical to 1.0 reference for',
 // nearbyProbeContact must pick the same pin as the 1.0 search at many tip positions.
 app.buildScenario('healthy');
 function referenceNearby(tip){let result=null,min=0.34;for(const part of app.parts)for(const port of part.ports)for(const pin of port.pins){const n=pin.userData.pin.n;if(!PINS[port.kind]?.[n])continue;const d=tip.distanceTo(referencePose({port,n}).position);if(d<min){min=d;result={port,n};}}return result;}
-const {PINS}=await import(path.join(temp,'dist/electrical.js'));
+const {PINS}=await import(pathToFileURL(path.join(temp,'dist/electrical.js')).href);
 let tips=0;
 for(const part of app.parts)for(const port of part.ports)for(const pin of port.pins){
   const base=referencePose({port,n:pin.userData.pin.n}).position;

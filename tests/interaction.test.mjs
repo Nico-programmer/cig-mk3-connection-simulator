@@ -1,3 +1,4 @@
+import {pathToFileURL} from "node:url";
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -88,7 +89,7 @@ app.learning.menu();els.lang.onclick();assert(els.lessonMenuItems.children[0].te
 console.log('Eight-lesson menu, action gates, LED, voltage, continuity, two-way swap and bypass checks completed.');
 
 // Traverse every lesson without hardware actions: counters, bounds, previous and repeat.
-for(const lesson of (await import(path.join(temp,'dist/learning.js'))).lessons){app.learning.start(lesson.id);for(let i=0;i<lesson.steps.length;i++){app.learning.tick();assert(!els.lessonNext.disabled,'Unblocked navigation '+lesson.id+' '+(i+1));assert(els.lessonCounter.textContent===`${i+1} / ${lesson.steps.length}`,'Counter matches visible step');if(i>0){els.lessonPrevious.onclick();assert(app.learning.index===i-1,'Previous step '+lesson.id);els.lessonNext.onclick();assert(app.learning.index===i,'Forward after previous '+lesson.id);}if(i<lesson.steps.length-1)els.lessonNext.onclick();}els.lessonRestart.onclick();assert(app.learning.index===0,'Repeat returns to first step '+lesson.id);app.learning.menu();}
+for(const lesson of (await import(pathToFileURL(path.join(temp,'dist/learning.js')).href)).lessons){app.learning.start(lesson.id);for(let i=0;i<lesson.steps.length;i++){app.learning.tick();assert(!els.lessonNext.disabled,'Unblocked navigation '+lesson.id+' '+(i+1));assert(els.lessonCounter.textContent===`${i+1} / ${lesson.steps.length}`,'Counter matches visible step');if(i>0){els.lessonPrevious.onclick();assert(app.learning.index===i-1,'Previous step '+lesson.id);els.lessonNext.onclick();assert(app.learning.index===i,'Forward after previous '+lesson.id);}if(i<lesson.steps.length-1)els.lessonNext.onclick();}els.lessonRestart.onclick();assert(app.learning.index===0,'Repeat returns to first step '+lesson.id);app.learning.menu();}
 app.learning.start('voltage');els.lessonNext.onclick();app.updatePinGuidance();assert(app.highlightedPins.map(h=>h.n).join(',')==='7,8','Voltage step highlights pins 7 and 8');assert(app.highlightedPins.every(h=>h.ring.material.depthTest===false&&h.badge.textContent==='Pin '+h.n),'Pin rings and numbered labels remain visible above connector geometry');
 const hp=app.highlightedPins[0],oldPosition=hp.ring.position.clone();hp.port.group.position.x+=.25;app.updatePinGuidance();assert(hp.ring.position.distanceTo(oldPosition)>.2,'Pin highlighting follows connector movement');
 els.selectProbe0.onclick();const guidedPin=hp.port.pins.find(p=>p.userData.pin.n===7);app.probeTools[0].group.position.copy(app.probePose({port:hp.port,n:7},.18).position);app.updateMeterControls();const contact=app.nearbyProbeContact(0);assert(els.probePin0.textContent.includes('Pin '+contact.n),'Approaching probe identifies the exact candidate pin');assert(els.probeTarget.textContent.includes('pin '+contact.n),'Floating number agrees with Connect probe target');
@@ -136,7 +137,7 @@ console.log('Middle unsecured/contact-terminal deductions, reseating, physical r
 
 // Regression: run the actual pointer-down / pointer-move path against every
 // reported surface, including a single fast event ending beyond the obstacle.
-const {segmentHitsSolid}=await import(path.join(temp,'dist/collision.js'));
+const {segmentHitsSolid}=await import(pathToFileURL(path.join(temp,'dist/collision.js')).href);
 for(const type of ['meter','up4','circular']){
  app.buildScenario('assembly');app.learning.menu();
  const target=type==='meter'?app.meter:app.parts[type==='up4'?1:2].ports[1].group;

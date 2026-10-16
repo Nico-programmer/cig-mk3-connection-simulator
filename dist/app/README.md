@@ -19,7 +19,7 @@ La versión 1.1 es una reestructuración pura de la 1.0 (antes llamada v16): cad
 | `overlays.js` | Grupos de hitboxes y de anillos de pines. |
 | `names.js` | Nombres de piezas y conectores. |
 | `parts.js` | Constructores de MK3, EM y arneses. |
-| `model-mk3.js` | Carga opcional del modelo realista del MK3 (`public/mk3-ligero.glb`) y la imagen de login; si no carga (file://, `?model=0`, error, 8 s) se usa el cuerpo procedural. Al cargar, simplifica la malla por agrupación de vértices hasta ~90k triángulos (`MK3_TARGET_TRIANGLES`). En el modelo realista el conector va a escala 0,6 y sin pestañas laterales. |
+| `model-mk3.js` | Carga opcional del modelo realista del MK3 (`public/mk3-ligero.glb`) y la imagen de login; si no carga (file://, `?model=0`, error, 8 s) se usa el cuerpo procedural. Al cargar, simplifica la malla con meshoptimizer (colapso de aristas cuadrático, `vendor/meshopt_simplifier.module.js`, conserva UV y normales) hasta ~90k triángulos (`MK3_TARGET_TRIANGLES`). En el modelo realista el conector va a escala 0,6 y sin pestañas laterales. |
 | `scenario.js` | Arma el banco de cada escenario (piezas, repuestos, uniones, fallas). |
 | `spatial.js` | Posición y orientación en el mundo, búsquedas en el grafo de escena. |
 | `connection.js` | Compatibilidad, alineación, conectar/desconectar, rosca. |

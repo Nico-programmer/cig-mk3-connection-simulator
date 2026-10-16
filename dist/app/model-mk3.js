@@ -4,6 +4,7 @@
 import * as T from "three";
 import { DRACOLoader } from "../vendor/loaders/DRACOLoader.js";
 import { GLTFLoader } from "../vendor/loaders/GLTFLoader.js";
+import { MeshoptSimplifier } from "../vendor/meshopt_simplifier.module.js";
 
 // Model units -> scene units: the model is 1.28 high, the procedural body was 2.12.
 export const MK3_SCALE = 2.12 / 1.28;
@@ -14,64 +15,59 @@ export const mk3 = { body: null, login: null };
 
 // Triangles kept per MK3 (the raw model has ~480k and the bench shows two of them).
 export const MK3_TARGET_TRIANGLES = 90000;
-const CELLS = [0.002, 0.003, 0.004, 0.006, 0.008, 0.012, 0.018, 0.025];
 
-// Vertex clustering: snaps vertices to a grid of `cell` units, merges the ones in the same cell
-// (the first one keeps its attributes) and drops the triangles that collapse.
-function cluster(geometry, cell) {
-  const pos = geometry.attributes.position;
-  const src = geometry.index ? geometry.index.array : null;
-  const count = src ? src.length : pos.count;
-  const map = new Map();
-  const keep = [];
-  const remap = new Uint32Array(pos.count);
-  for (let i = 0; i < pos.count; i++) {
-    const key = (Math.round(pos.getX(i) / cell) + 4096) + (Math.round(pos.getY(i) / cell) + 4096) * 8192 + (Math.round(pos.getZ(i) / cell) + 4096) * 67108864;
-    let id = map.get(key);
-    if (id === undefined) {
-      id = keep.length;
-      map.set(key, id);
-      keep.push(i);
-    }
-    remap[i] = id;
-  }
-  const idx = [];
-  for (let t = 0; t < count; t += 3) {
-    const a = remap[src ? src[t] : t], b = remap[src ? src[t + 1] : t + 1], c = remap[src ? src[t + 2] : t + 2];
-    if (a !== b && b !== c && a !== c) idx.push(a, b, c);
-  }
-  return { keep, idx };
-}
-
-// Replaces the mesh geometries by simplified ones until the model is under `target` triangles.
-export function simplifyModel(root, target = MK3_TARGET_TRIANGLES) {
+// Quadric edge-collapse simplification (meshoptimizer). It keeps the original vertices, so UVs and
+// normals are untouched, and it weighs UV and normal error so the label and the shading survive.
+// Replaces the geometry of every mesh under `root` until the whole model has ~`target` triangles.
+export async function simplifyModel(root, target = MK3_TARGET_TRIANGLES) {
+  await MeshoptSimplifier.ready;
+  MeshoptSimplifier.useExperimentalFeatures = true;
   const meshes = [];
   root.traverse((m) => m.isMesh && m.geometry && m.geometry.attributes.position && meshes.push(m));
-  const total = (cell) => meshes.reduce((n, m) => n + cluster(m.geometry, cell).idx.length / 3, 0);
-  let cell = CELLS[CELLS.length - 1];
-  for (const c of CELLS) {
-    if (total(c) <= target) {
-      cell = c;
-      break;
-    }
-  }
+  let triangles = 0;
+  for (const m of meshes) triangles += (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3;
+  const ratio = Math.min(1, target / Math.max(1, triangles));
   for (const m of meshes) {
     const old = m.geometry;
-    const { keep, idx } = cluster(old, cell);
+    const pos = old.attributes.position, uv = old.attributes.uv, nor = old.attributes.normal;
+    const n = pos.count;
+    const positions = new Float32Array(n * 3);
+    const attrs = new Float32Array(n * 5); // uv (2) + normal (3)
+    for (let v = 0; v < n; v++) {
+      positions.set([pos.getX(v), pos.getY(v), pos.getZ(v)], v * 3);
+      if (uv) attrs.set([uv.getX(v), uv.getY(v)], v * 5);
+      if (nor) attrs.set([nor.getX(v), nor.getY(v), nor.getZ(v)], v * 5 + 2);
+    }
+    let indices;
+    if (old.index) indices = Uint32Array.from(old.index.array);
+    else indices = Uint32Array.from({ length: n }, (_, k) => k);
+    const wanted = Math.max(3, Math.floor((indices.length * ratio) / 3) * 3);
+    const [simple] = MeshoptSimplifier.simplifyWithAttributes(indices, positions, 3, attrs, 5, [1, 1, 0.5, 0.5, 0.5], null, wanted, 1);
+    // Compact: keep only the vertices the new triangles use.
+    const remap = new Int32Array(n).fill(-1);
+    const keep = [];
+    const idx = new Uint32Array(simple.length);
+    for (let k = 0; k < simple.length; k++) {
+      const v = simple[k];
+      if (remap[v] < 0) {
+        remap[v] = keep.length;
+        keep.push(v);
+      }
+      idx[k] = remap[v];
+    }
     const g = new T.BufferGeometry();
     for (const name of Object.keys(old.attributes)) {
       const a = old.attributes[name];
       const out = new a.array.constructor(keep.length * a.itemSize);
-      for (let i = 0; i < keep.length; i++) for (let k = 0; k < a.itemSize; k++) out[i * a.itemSize + k] = a.array[keep[i] * a.itemSize + k];
+      for (let k = 0; k < keep.length; k++) for (let c = 0; c < a.itemSize; c++) out[k * a.itemSize + c] = a.array[keep[k] * a.itemSize + c];
       g.setAttribute(name, new T.BufferAttribute(out, a.itemSize, a.normalized));
     }
-    g.setIndex(new T.BufferAttribute(keep.length > 65535 ? new Uint32Array(idx) : new Uint16Array(idx), 1));
+    g.setIndex(new T.BufferAttribute(keep.length > 65535 ? idx : new Uint16Array(idx), 1));
     g.computeBoundingBox();
     g.computeBoundingSphere();
     m.geometry = g;
     old.dispose();
   }
-  return cell;
 }
 
 const here = (path) => new URL(path, import.meta.url).href;
@@ -91,7 +87,7 @@ async function load() {
   const [gltf, login] = await Promise.all([loader.loadAsync(here("../public/mk3-ligero.glb")), loadImage(here("../public/logo-login-mk3.png"))]);
   draco.dispose();
   const model = gltf.scene;
-  simplifyModel(model);
+  await simplifyModel(model);
   const center = new T.Box3().setFromObject(model).getCenter(new T.Vector3());
   model.position.sub(center);
   model.traverse((m) => {

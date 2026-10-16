@@ -22,9 +22,13 @@ const assert=(ok,msg)=>{if(!ok)throw new Error(msg);console.log("PASS",msg);};
 // A stand-in for the realistic body (the GLB is only loaded over http), set before the bench is built.
 const g=new T.Group();g.add(new T.Mesh(new T.BoxGeometry(1,1,1),new T.MeshBasicMaterial()));
 app.mk3.body=g;
+// Same for the Expansion Module: a body 1.4 x 3 x 0.8 (centred), with its connector face at z = 0.27.
+const eg=new T.Group();eg.add(new T.Mesh(new T.BoxGeometry(1.4,3,0.8),new T.MeshBasicMaterial()));
+app.em3d.body=eg;app.em3d.box=new T.Box3(new T.Vector3(-0.7,-1.5,-0.4),new T.Vector3(0.7,1.5,0.4));app.em3d.port={x:0,y:0,z:0.27};
 for(const code of ["F4","F5","F1"]){
   app.buildScenario(code);
   assert(app.parts.some((p)=>p.realistic),"The realistic MK3 is built for "+code);
+  assert(app.parts.filter((p)=>p.type==="em").every((p)=>p.root.children.some((c)=>c.isGroup&&c.children[0]?.geometry?.parameters?.width===1.4)),"The realistic EM is built for "+code);
   for(const [ai,ap,bi,bp] of [[1,0,0,0],[2,0,1,1],[2,1,3,0]]){
     const p=app.parts[ai].ports[ap],q=app.parts[bi].ports[bp];
     if(p.joint){const m=p.mate;app.detach(p);p.blockMate=m.blockMate=null;}

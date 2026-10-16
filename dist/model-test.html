@@ -54,8 +54,10 @@ import { GLTFLoader } from './vendor/loaders/GLTFLoader.js';
 import { DRACOLoader } from './vendor/loaders/DRACOLoader.js';
 
 // ---- Datos a calibrar (unidades del modelo: ancho 1.9, alto 1.28, fondo 0.62) ----
+const modelParam = new URLSearchParams(location.search).get('model');
+const isExpansion = modelParam === 'expansion' || modelParam === 'expansion-fleet';
 const CFG = {
-  model: './public/mk3-ligero.glb',
+  model: modelParam === 'expansion-fleet' ? './public/Expansion_Module_FLEET.glb' : isExpansion ? './public/Expansion_Module-ligero.glb' : './public/mk3-ligero.glb',
   login: './public/logo-login-mk3.png',
   // Plano de la pantalla: en este modelo la pantalla mira hacia -z y los conectores hacia +z.
   screen: { x: 0, y: 0, w: 1.74, z: -0.312, aspect: 800 / 480 },
@@ -201,6 +203,34 @@ loader.load(
   CFG.model,
   (gltf) => {
     holder.add(gltf.scene);
+    if (isExpansion) {
+      // El módulo viene en metros (~0.07 × 0.04 × 0.15): se escala a ~2.4 y se centra; sin pantalla ni pines del MK3.
+      const raw = new T.Box3().setFromObject(gltf.scene);
+      gltf.scene.scale.setScalar(2.4 / Math.max(...raw.getSize(new T.Vector3()).toArray()));
+      gltf.scene.position.sub(new T.Box3().setFromObject(gltf.scene).getCenter(new T.Vector3()));
+      screenMesh.visible = false;
+      markers.clear();
+      // Un marcador por cada "Gold contact NN" del modelo, con el número de la pieza (no el número de pin del
+      // simulador: esa asignación se define en EM_PIN_MAP cuando se confirme).
+      gltf.scene.updateMatrixWorld(true);
+      gltf.scene.traverse((o) => {
+        const m = /^13[ _]Gold[ _]contact[ _](\d+)/.exec(o.name);
+        if (!m || !o.isMesh) return;
+        const bb = new T.Box3().setFromObject(o), c = bb.getCenter(new T.Vector3());
+        const dot = new T.Mesh(new T.SphereGeometry(0.012, 12, 12), new T.MeshBasicMaterial({ color: 0xffd23f, depthTest: false }));
+        dot.position.set(c.x, bb.max.y + 0.01, c.z);
+        dot.renderOrder = 10;
+        markers.add(dot);
+        const sp = labelSprite(String(Number(m[1])), "#ffd23f");
+        sp.position.copy(dot.position).add(new T.Vector3(0, 0.05, 0));
+        sp.scale.setScalar(0.06);
+        sp.renderOrder = 11;
+        markers.add(sp);
+      });
+      // ?hide=11,12 oculta las piezas cuyo nombre empieza por esos prefijos (diagnóstico).
+      const hide = (params.get('hide') || '').split(',').filter(Boolean);
+      gltf.scene.traverse((o) => { if (hide.some((h) => o.name.startsWith(h))) o.visible = false; });
+    }
     const b = new T.Box3().setFromObject(gltf.scene);
     const size = b.getSize(new T.Vector3());
     let tris = 0;
@@ -209,7 +239,8 @@ loader.load(
     box.visible = false;
     scene.add(box);
     msg.textContent = `Modelo cargado · ${Math.round(tris).toLocaleString()} triángulos · ` +
-      `${size.x.toFixed(2)} × ${size.y.toFixed(2)} × ${size.z.toFixed(2)}`;
+      `${size.x.toFixed(2)} × ${size.y.toFixed(2)} × ${size.z.toFixed(2)}` +
+      (isExpansion ? ` · ${markers.children.length / 2} marcadores` : '');
     document.title = 'ready';
   },
   undefined,
@@ -220,8 +251,11 @@ loader.load(
 function setView(v) {
   const d = 3.4;
   const pos = { front: [0, 0, -d], back: [0, 0, d], iso: [2.1, 1.2, -2.6], isoBack: [2.1, 1.2, 2.6] }[v] || [0, 0, -d];
-  camera.position.set(...pos);
-  controls.target.set(0, 0, 0);
+  // ?cam=x,y,z[,tx,ty,tz] sets the camera by hand (used for close-ups).
+  const manual = (params.get('cam') || '').split(',').map(Number);
+  const hand = manual.length >= 3 && manual.every(Number.isFinite);
+  camera.position.set(...(hand ? manual.slice(0, 3) : pos));
+  controls.target.set(...(hand && manual.length >= 6 ? manual.slice(3, 6) : [0, 0, 0]));
   controls.update();
   for (const b of document.querySelectorAll('#views button')) b.classList.toggle('on', b.dataset.v === v);
 }
@@ -247,7 +281,7 @@ function resize() {
 addEventListener('resize', resize);
 if (params.has('ui') && params.get('ui') === '0') document.getElementById('ui').style.display = 'none';
 if (params.get('pins') === '0') { markers.visible = false; document.getElementById('showPins').checked = false; }
-buildMarkers();
+if (!isExpansion) buildMarkers();
 placeScreen();
 resize();
 setState(state);

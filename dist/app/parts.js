@@ -3,6 +3,7 @@ import * as T from "three";
 import { box, cylinder, label, makePort, material, palette } from "../geometry.js";
 import { updateCable } from "./cables.js";
 import { MK3_SCALE, MK3_SCREEN, mk3 } from "./model-mk3.js";
+import { em3d } from "./model-em.js";
 import { dynamic } from "./scene.js";
 import { Q, V, tr } from "./util.js";
 import { S } from "./state.js";
@@ -145,30 +146,65 @@ function dressRealistic(p, { hull, port, cam, camPins, hidden }) {
 export function makeEM(position, spare = false) {
   const p = addPart("em", spare);
   p.root.position.copy(position);
-  box(p.root, 1.75, 2.48, 0.55, 0xbec9cb, 0, 1.25, 0);
-  for (const y of [0.15, 2.36]) box(p.root, 1.9, 0.23, 0.65, 0xcdd5d6, 0, y, 0);
-  label(p.root, "Expansion Module", 1.54, 0.22, V(0, 2.08, 0.286), {
-    bg: "#bec9cb",
-    fg: "#26333b",
-    size: 30,
-  });
-  label(p.root, "FLEET iQ360", 1.3, 0.2, V(0, 1.82, 0.286), {
-    bg: "#bec9cb",
-    fg: "#26333b",
-    size: 30,
-  });
-  makePort(p, "em", p.id + "-em", V(0, 1.13, 0.58), Q(), p.root);
+  const hull = box(p.root, 1.75, 2.48, 0.55, 0xbec9cb, 0, 1.25, 0);
+  const plates = [];
+  for (const y of [0.15, 2.36]) plates.push(box(p.root, 1.9, 0.23, 0.65, 0xcdd5d6, 0, y, 0));
+  const names = [
+    label(p.root, "Expansion Module", 1.54, 0.22, V(0, 2.08, 0.286), {
+      bg: "#bec9cb",
+      fg: "#26333b",
+      size: 30,
+    }),
+    label(p.root, "FLEET iQ360", 1.3, 0.2, V(0, 1.82, 0.286), {
+      bg: "#bec9cb",
+      fg: "#26333b",
+      size: 30,
+    }),
+  ];
+  const port = makePort(p, "em", p.id + "-em", V(0, 1.13, 0.58), Q(), p.root);
+  const leds = [];
   for (let i = 0; i < 3; i++) {
     const lm = material(0x0b1715, 0.1, 0.3);
     const m = cylinder(p.root, 0.066, 0.055, lm, 0.61, 0.36 + i * 0.18, 0.31);
+    leds.push(m);
     if (i === 0) {
       p.led = m;
       lm.emissive = new T.Color(0x00ff69);
       lm.emissiveIntensity = 0;
     }
   }
+  if (em3d.body) dressRealisticEM(p, { hull, plates, names, port, leds });
   finishPart(p);
   return p;
+}
+// Swaps the visible procedural body for the loaded model. Pins, port and the hull collider stay
+// procedural (the model contacts are not the real layout); only their visuals are hidden or moved.
+function dressRealisticEM(p, { hull, plates, names, port, leds }) {
+  for (const m of [hull, ...plates, ...names, ...leds]) m.visible = false;
+  for (const m of plates) delete m.userData.solid; // hidden: the model has no flanges that wide
+  const model = em3d.body.clone(true);
+  model.position.set(0, 1.25, 0);
+  p.root.add(model);
+  const size = em3d.box.getSize(new T.Vector3());
+  // Collider: the shell (its front face is at the shell top), not the connector barrel.
+  hull.userData.solid.set(size.x / 2, size.y / 2, 0.3);
+  hull.userData.solidCenter = new T.Vector3(0, 0, -0.1);
+  // The model's green LED drives the same material the procedural LED used.
+  model.traverse((m) => {
+    if (m.isMesh && /^15[ _]LED[ _]Green/.test(m.name)) {
+      m.material = m.material.clone();
+      m.material.emissive = new T.Color(0x00ff69);
+      m.material.emissiveIntensity = 0;
+      p.led = m;
+    }
+  });
+  // Port: pins on the insulator face, scaled to sit inside the barrel. Only pins and their numbers are drawn.
+  const PORT_SCALE = 0.4;
+  port.group.scale.setScalar(PORT_SCALE);
+  port.group.position.set(em3d.port.x, em3d.port.y + 1.25, em3d.port.z + 0.11 * PORT_SCALE);
+  port.group.traverse((m) => {
+    if (m.isMesh) m.visible = !!(m.userData.pin || m.userData.setText);
+  });
 }
 export function makeHarness(type, position, spare = false) {
   const p = addPart(type, spare);

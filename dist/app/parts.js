@@ -4,6 +4,13 @@ import { box, cylinder, label, makePort, material, palette } from "../geometry.j
 import { updateCable } from "./cables.js";
 import { MK3_SCALE, MK3_SCREEN, mk3 } from "./model-mk3.js";
 import { em3d } from "./model-em.js";
+import { CONNECTOR_DEPTH_SCALE, CONNECTOR_MODEL, CONNECTOR_SCALE, conn12 } from "./model-connector.js";
+
+// Realistic 12-pin connector: where its face sits in its own frame (the mating distance is measured to it) and how
+// far behind the MK3 port origin that face ends up: just above the floor of the recess (measured: floor -0.125,
+// back plate -0.03, side ears +0.14), so the plug is seated in it and no gap shows.
+const CONNECTOR_FACE = 0.19,
+  CONNECTOR_SEAT = -0.1;
 import { dynamic } from "./scene.js";
 import { Q, V, tr } from "./util.js";
 import { S } from "./state.js";
@@ -127,9 +134,17 @@ function dressRealistic(p, { hull, port, cam, camPins, hidden }) {
   // The connector is not drawn, so the mating partner (the orange one) must end up touching the rear
   // face (z = -0.515). It is placed 0.4 outwards from this port and faces it, so its front is 0.19
   // from its origin: port z = -0.515 + 0.19 + 0.4 - 0.03 (clearance) = -0.32.
-  const PORT_SCALE = 0.6;
+  // The MK3 port is drawn at the scale that gives it the same contact pitch as the connector that mates with it.
+  const PORT_SCALE = conn12.body ? (CONNECTOR_MODEL.pitch * CONNECTOR_SCALE) / 0.215 : 0.6;
   port.group.scale.setScalar(PORT_SCALE);
   port.group.position.set(0.027, 0.96, -0.32);
+  if (conn12.body) {
+    port.mateOffset = CONNECTOR_FACE + CONNECTOR_SEAT; // seats the realistic connector in the recess (see align)
+    // Same width and height as the connector that mates with it (this group is scaled by PORT_SCALE).
+    const proxy = port.colliders[0];
+    proxy.userData.solid.x = (CONNECTOR_MODEL.width * CONNECTOR_SCALE) / PORT_SCALE / 2;
+    proxy.userData.solid.y = (CONNECTOR_MODEL.height * CONNECTOR_SCALE) / PORT_SCALE / 2;
+  }
   // The 12-pin connector is not drawn: the photographed recess is used as is. Pins, ports and
   // colliders stay (invisible) so probes and mating keep working.
   port.group.traverse((m) => {
@@ -137,7 +152,8 @@ function dressRealistic(p, { hull, port, cam, camPins, hidden }) {
   });
   // Camera port: directly above it. Hidden, it keeps the tooltip and a smaller solid.
   cam.position.set(-0.008, 1.485, -0.5);
-  cam.scale.set(0.5, 1, 0.5);
+  // Thin along its axis: the taller realistic orange connector must not touch this invisible solid.
+  cam.scale.set(0.5, 0.3, 0.5);
   cam.visible = false; // the model already has its own camera nut
   for (const m of camPins) m.position.add(V(0.992, 0.685, -0.1));
   // Hidden and with no function: they must not block the orange connector.
@@ -206,11 +222,47 @@ function dressRealisticEM(p, { hull, plates, names, port, leds }) {
     if (m.isMesh) m.visible = !!(m.userData.pin || m.userData.setText);
   });
 }
+// Swaps the visible procedural orange shell for the loaded 12-pin connector. The pins, their numbers,
+// the port and its collider stay procedural: the pins are moved onto the model's contact grid.
+function dressRealisticConnector(port) {
+  const k = CONNECTOR_SCALE,
+    FACE = CONNECTOR_FACE,
+    kz = k * CONNECTOR_DEPTH_SCALE,
+    BACK = FACE - CONNECTOR_MODEL.faceZ * kz; // the rubber boot, behind the shell
+  const xPitch = (CONNECTOR_MODEL.pitch * k) / 0.215, // procedural pitch -> model pitch
+    yRow = (CONNECTOR_MODEL.rowY * k) / 0.2;
+  port.group.traverse((m) => {
+    if (!m.isMesh || m.userData.colliderOnly) return;
+    const isPin = !!m.userData.pin;
+    if (isPin || m.userData.setText) {
+      m.position.x *= xPitch;
+      m.position.y *= yRow;
+      if (m.userData.setText) m.position.z = FACE + 0.01; // numbers lie on the face
+      else if (m.position.z > 0 && m.position.z < FACE) m.position.z = FACE - 0.07; // contacts sit inside the face
+      else if (m.position.z < -0.2) m.position.z = BACK - 0.03; // rear access points, behind the boot
+    }
+    // Only the pin numbers stay drawn; the rest is the model.
+    if (!m.userData.setText) m.visible = false;
+  });
+  const model = conn12.body.clone(true);
+  model.scale.set(k, k, kz);
+  model.position.set(0, 0, BACK);
+  port.group.add(model);
+  // The cable leaves the rear of the boot.
+  port.rearZ = BACK;
+  port.jacketZ = BACK - 0.32;
+  // Collider: the shell only (the boot is a thin tube behind it), so the box hugs what is drawn.
+  const depth = (CONNECTOR_MODEL.faceZ - CONNECTOR_MODEL.shellBackZ) * kz;
+  const proxy = port.colliders[0];
+  proxy.userData.solid.set((CONNECTOR_MODEL.width * k) / 2, (CONNECTOR_MODEL.height * k) / 2, depth / 2);
+  proxy.position.set(0, 0, FACE - depth / 2);
+}
 export function makeHarness(type, position, spare = false) {
   const p = addPart(type, spare);
   p.root.position.copy(position);
   if (type === "upper") {
-    makePort(p, "orange", p.id + "-orange", V(-1, 0.95, 0), Q(0, 0.4, Math.PI / 2), p.root);
+    const orange = makePort(p, "orange", p.id + "-orange", V(-1, 0.95, 0), Q(0, 0.4, Math.PI / 2), p.root);
+    if (conn12.body) dressRealisticConnector(orange);
     makePort(p, "up4", p.id + "-up4", V(1, 0.62, 0), Q(0, 0, Math.PI / 2), p.root);
   } else {
     makePort(p, "low4", p.id + "-low4", V(-1, 0.62, 0), Q(0, Math.PI, Math.PI / 2), p.root);

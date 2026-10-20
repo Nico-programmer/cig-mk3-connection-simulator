@@ -31,7 +31,7 @@ const JACKET_Z = -0.62, // where the cable jacket starts, behind the connector (
 export function jacketEnd(port) {
   port.group.updateWorldMatrix(true, false);
   return {
-    point: port.group.localToWorld(new T.Vector3(0, 0, JACKET_Z)),
+    point: port.group.localToWorld(new T.Vector3(0, 0, port.jacketZ ?? JACKET_Z)),
     dir: new T.Vector3(0, 0, -1).applyQuaternion(port.group.getWorldQuaternion(new T.Quaternion())),
   };
 }
@@ -39,8 +39,8 @@ export function jacketEnd(port) {
 // The four wires between the rear of the shell and the jacket; fixed to the connector.
 function addWires(port, part) {
   if (port.wires) return;
-  const rear = REAR_Z[port.kind] ?? -0.3,
-    length = rear - (JACKET_Z - 0.04);
+  const rear = port.rearZ ?? REAR_Z[port.kind] ?? -0.3,
+    length = rear - ((port.jacketZ ?? JACKET_Z) - 0.04);
   port.wires = WIRE_OFFSETS.map(([x, y], i) => {
     const wire = new T.Mesh(new T.CylinderGeometry(0.018, 0.018, length, 8), material(WIRE_COLORS[i]));
     wire.rotation.x = Math.PI / 2;

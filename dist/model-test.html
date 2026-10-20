@@ -55,9 +55,9 @@ import { DRACOLoader } from './vendor/loaders/DRACOLoader.js';
 
 // ---- Datos a calibrar (unidades del modelo: ancho 1.9, alto 1.28, fondo 0.62) ----
 const modelParam = new URLSearchParams(location.search).get('model');
-const isExpansion = modelParam === 'expansion' || modelParam === 'expansion-fleet';
+const isExpansion = ['expansion', 'expansion-fleet', 'connector'].includes(modelParam);
 const CFG = {
-  model: modelParam === 'expansion-fleet' ? './public/Expansion_Module_FLEET.glb' : isExpansion ? './public/Expansion_Module-ligero.glb' : './public/mk3-ligero.glb',
+  model: modelParam === 'connector' ? './public/connector-12-pin-ligero.glb' : modelParam === 'expansion-fleet' ? './public/Expansion_Module_FLEET.glb' : isExpansion ? './public/Expansion_Module-ligero.glb' : './public/mk3-ligero.glb',
   login: './public/logo-login-mk3.png',
   // Plano de la pantalla: en este modelo la pantalla mira hacia -z y los conectores hacia +z.
   screen: { x: 0, y: 0, w: 1.74, z: -0.312, aspect: 800 / 480 },

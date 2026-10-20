@@ -21,6 +21,7 @@ La versión 1.1 es una reestructuración pura de la 1.0 (antes llamada v16): cad
 | `parts.js` | Constructores de MK3, EM y arneses. |
 | `model-mk3.js` | Carga opcional del modelo realista del MK3 (`public/mk3-ligero.glb`) y la imagen de login; si no carga (file://, `?model=0`, error, 8 s) se usa el cuerpo procedural. Al cargar, simplifica la malla con meshoptimizer (colapso de aristas cuadrático, `vendor/meshopt_simplifier.module.js`, conserva UV y normales) hasta ~90k triángulos (`MK3_TARGET_TRIANGLES`). En el modelo realista el conector va a escala 0,6 y sin pestañas laterales. |
 | `model-em.js` | Carga opcional del Expansion Module realista (`public/Expansion_Module_FLEET.glb`), con las mismas reglas de respaldo que `model-mk3.js`. Oculta la rosca (tapa cerrada) y los contactos del modelo (disposición 11+1, no la real 8+4); los pines son los procedurales numerados según el esquema del conector. |
+| `model-connector.js` | Carga opcional del conector naranja de 12 pines (`public/connector-12-pin-ligero.glb`, Deutsch DT 12), con las mismas reglas de respaldo. Los pines procedurales se colocan sobre su rejilla de contactos 2×6 y el cable sale de la parte trasera de la funda de goma. |
 | `scenario.js` | Arma el banco de cada escenario (piezas, repuestos, uniones, fallas). |
 | `spatial.js` | Posición y orientación en el mundo, búsquedas en el grafo de escena. |
 | `connection.js` | Compatibilidad, alineación, conectar/desconectar, rosca. |

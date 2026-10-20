@@ -38,6 +38,8 @@ export function attach(a, b, secured = true, thread = 6) {
   return j;
 }
 export function mateOffset(a, b) {
+  const seated = a.mateOffset ?? b.mateOffset; // set on the MK3 port when the plug sits in its recess
+  if (seated !== undefined) return seated;
   if (a.part?.type === "bypass" && b.part?.type === "bypass") return 0.14;
   return [a.kind, b.kind].some((k) => ["circular", "em"].includes(k)) ? 0.28 : 0.4;
 }

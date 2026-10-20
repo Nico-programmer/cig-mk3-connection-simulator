@@ -31,6 +31,9 @@ function exempt(a, b) {
   const pa = portOf(a),
     pb = portOf(b);
   if (pa && pb && pa.mate === pb) return true;
+  // A mated connector sits in its partner's recess: the partner's body does not block it.
+  if (pa && pa.mate && b.userData.part === pa.mate.part) return true;
+  if (pb && pb.mate && a.userData.part === pb.mate.part) return true;
   for (const [tip, other] of [
     [a, pb],
     [b, pa],

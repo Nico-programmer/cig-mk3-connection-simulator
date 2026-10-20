@@ -13,10 +13,11 @@ import "./app/overlays.js";
 import "./app/loop.js";
 import { loadMk3Model } from "./app/model-mk3.js";
 import { loadEmModel } from "./app/model-em.js";
+import { loadConnectorModel } from "./app/model-connector.js";
 import { buildScenario } from "./app/scenario.js";
 import { animate } from "./app/loop.js";
 
 // The realistic MK3 model (when available) must be ready before the first bench is built.
-await Promise.all([loadMk3Model(), loadEmModel()]);
+await Promise.all([loadMk3Model(), loadEmModel(), loadConnectorModel()]);
 buildScenario();
 requestAnimationFrame(animate);

@@ -60,7 +60,7 @@ export async function loadEmModel(timeoutMs = 8000) {
     timer = setTimeout(() => resolve(false), timeoutMs);
   });
   try {
-    return await Promise.race([load().catch(() => false), timeout]);
+    return await Promise.race([load().catch((e) => (console.warn("Expansion Module model not loaded:", e?.message || e), false)), timeout]);
   } finally {
     clearTimeout(timer);
   }

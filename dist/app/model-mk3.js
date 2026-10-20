@@ -116,7 +116,7 @@ export async function loadMk3Model(timeoutMs = 8000) {
     timer = setTimeout(() => resolve(false), timeoutMs);
   });
   try {
-    return await Promise.race([load().catch(() => false), timeout]);
+    return await Promise.race([load().catch((e) => (console.warn("MK3 model not loaded:", e?.message || e), false)), timeout]);
   } finally {
     clearTimeout(timer);
   }

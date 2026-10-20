@@ -1,4 +1,4 @@
-// Optional realistic Expansion Module (public/Expansion_Module_FLEET.glb). Loaded once, before the
+// Optional realistic Expansion Module (public/Expansion_Module-ligero.glb, the real model). Loaded once, before the
 // first scenario is built. When it is not available (tests, file://, ?model=0, load error) the EM keeps
 // its procedural body. The model's own contacts and thread cap are hidden: its 11+1 contact layout is
 // not the real 8+4 one, so the procedural pins (numbered as in the connector diagram) stay on top.
@@ -8,7 +8,8 @@ import { GLTFLoader } from "../vendor/loaders/GLTFLoader.js";
 
 // Model metres -> scene units (the model is 0.07 x 0.15 x 0.04; the procedural body was 1.75 x 2.48).
 export const EM_SCALE = 20;
-// Pieces that are not drawn: 11 = thread (a closed cap that covers the pins), 13 = the model's contacts.
+// Pieces that are not drawn: 11 = thread, 13 = the model's contacts. They are ~480k of the model's 522k triangles,
+// so they are removed from the scene (and freed) as soon as it is loaded.
 const HIDDEN = /^(11|13)[ _]/;
 // `body` is null until the model has loaded; `port` is the insulator face (centre and z) in body units.
 export const em3d = { body: null, port: null, box: null };
@@ -17,16 +18,21 @@ const here = (path) => new URL(path, import.meta.url).href;
 
 async function load() {
   const draco = new DRACOLoader().setDecoderPath(here("../vendor/libs/draco/gltf/"));
-  const gltf = await new GLTFLoader().setDRACOLoader(draco).loadAsync(here("../public/Expansion_Module_FLEET.glb"));
+  const gltf = await new GLTFLoader().setDRACOLoader(draco).loadAsync(here("../public/Expansion_Module-ligero.glb"));
   draco.dispose();
   const model = gltf.scene;
+  const dropped = [];
   model.traverse((m) => {
     if (!m.isMesh) return;
     m.castShadow = m.receiveShadow = false;
     m.raycast = () => {};
     m.userData.sharedModel = true;
-    if (HIDDEN.test(m.name)) m.visible = false;
+    if (HIDDEN.test(m.name)) dropped.push(m);
   });
+  for (const m of dropped) {
+    m.parent.remove(m);
+    m.geometry.dispose();
+  }
   // The GLB is Z-up in metres: stand it up (face towards +z, label end up) and centre it.
   const wrapper = new T.Group();
   wrapper.add(model);

@@ -27,11 +27,28 @@ const eg=new T.Group();eg.add(new T.Mesh(new T.BoxGeometry(1.4,3,0.8),new T.Mesh
 app.em3d.body=eg;app.em3d.box=new T.Box3(new T.Vector3(-0.7,-1.5,-0.4),new T.Vector3(0.7,1.5,0.4));app.em3d.port={x:0,y:0,z:0.27};
 // And the 12-pin connector model (a plain box; the real one is 0.052 x 0.032 x 0.038 m).
 const cg=new T.Group();cg.add(new T.Mesh(new T.BoxGeometry(0.052,0.032,0.038),new T.MeshBasicMaterial()));app.conn12.body=cg;
+// And the white 4-pin model (0.021 x 0.017 x 0.028 m).
+const c4=new T.Group();c4.add(new T.Mesh(new T.BoxGeometry(0.021,0.017,0.028),new T.MeshBasicMaterial()));app.conn4.body=c4;
 for(const code of ["F4","F5","F1"]){
   app.buildScenario(code);
   assert(app.parts.some((p)=>p.realistic),"The realistic MK3 is built for "+code);
   assert(app.parts.filter((p)=>p.type==="em").every((p)=>p.root.children.some((c)=>c.isGroup&&c.children[0]?.geometry?.parameters?.width===1.4)),"The realistic EM is built for "+code);
   assert(app.parts.filter((p)=>p.type==="upper").every((p)=>p.ports[0].rearZ<0.19),"The realistic orange connector moves the cable to its rear ("+code+")");
+  assert(app.parts.filter((p)=>p.type==="upper").every((p)=>p.ports[1].rearZ<0.19&&p.ports[1].colliders[0].userData.solid.x*2>0.172&&p.ports[1].colliders[0].userData.solid.x<p.ports[0].colliders[0].userData.solid.x),"The realistic white 4-pin moves the cable to its rear and is wider than the cable (0.172) and smaller than the orange one ("+code+")");
+  {
+    // Pin hitboxes: every pin of the realistic ports has a radius that fits its nearest neighbour.
+    const ports=[app.parts.find((p)=>p.type==="screen"&&!p.spare).ports[0],app.parts.find((p)=>p.type==="upper"&&!p.spare).ports[0],app.parts.find((p)=>p.type==="upper"&&!p.spare).ports[1],app.parts.find((p)=>p.type==="em"&&!p.spare).ports[0]];
+    const radius=ports.map((port)=>{
+      const at=port.pins.map((pin)=>pin.getWorldPosition(new T.Vector3()));let nearest=Infinity;
+      for(let i=0;i<at.length;i++)for(let j=i+1;j<at.length;j++)nearest=Math.min(nearest,at[i].distanceTo(at[j]));
+      assert(port.pins.every((pin)=>Math.abs(pin.userData.pinRadius-0.3*nearest)<1e-9),"Pin hitboxes of the "+port.kind+" port are 0.3 of the nearest pin distance ("+code+")");
+      return port.pins[0].userData.pinRadius;
+    });
+    assert(radius[2]*4<ports[2].colliders[0].userData.solid.x*2,"The 4-pin's pin hitboxes ("+radius[2].toFixed(4)+") fit two across inside its shell");
+    const pick=app.parts.find((p)=>p.type==="upper"&&!p.spare).ports[1].group.children.filter((m)=>m.userData.pin&&m.geometry.type==="SphereGeometry");
+    assert(pick.length>0&&pick.every((m)=>Math.abs(m.geometry.parameters.radius*m.scale.x-radius[2])<1e-9),"The 4-pin's pick spheres take the pin hitbox radius");
+    assert(app.parts.find((p)=>p.type==="upper"&&!p.spare).ports[1].pins.every((pin)=>pin.userData.ringLift<0.08),"The guidance ring sits close to the small 4-pin's face");
+  }
   for(const [ai,ap,bi,bp] of [[1,0,0,0],[2,0,1,1],[2,1,3,0]]){
     const p=app.parts[ai].ports[ap],q=app.parts[bi].ports[bp];
     if(p.joint){const m=p.mate;app.detach(p);p.blockMate=m.blockMate=null;}

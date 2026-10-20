@@ -4,7 +4,16 @@ import { box, cylinder, label, makePort, material, palette } from "../geometry.j
 import { updateCable } from "./cables.js";
 import { MK3_SCALE, MK3_SCREEN, mk3 } from "./model-mk3.js";
 import { em3d } from "./model-em.js";
-import { CONNECTOR_DEPTH_SCALE, CONNECTOR_MODEL, CONNECTOR_SCALE, conn12 } from "./model-connector.js";
+import {
+  CONNECTOR4_DEPTH_SCALE,
+  CONNECTOR4_MODEL,
+  CONNECTOR4_SCALE,
+  CONNECTOR_DEPTH_SCALE,
+  CONNECTOR_MODEL,
+  CONNECTOR_SCALE,
+  conn12,
+  conn4,
+} from "./model-connector.js";
 
 // Realistic 12-pin connector: where its face sits in its own frame (the mating distance is measured to it) and how
 // far behind the MK3 port origin that face ends up: just above the floor of the recess (measured: floor -0.125,
@@ -150,6 +159,7 @@ function dressRealistic(p, { hull, port, cam, camPins, hidden }) {
   port.group.traverse((m) => {
     if (m.isMesh) m.visible = false;
   });
+  assignPinHitboxes(port);
   // Camera port: directly above it. Hidden, it keeps the tooltip and a smaller solid.
   cam.position.set(-0.008, 1.485, -0.5);
   // Thin along its axis: the taller realistic orange connector must not touch this invisible solid.
@@ -221,41 +231,104 @@ function dressRealisticEM(p, { hull, plates, names, port, leds }) {
   port.group.traverse((m) => {
     if (m.isMesh) m.visible = !!(m.userData.pin || m.userData.setText);
   });
+  assignPinHitboxes(port);
 }
-// Swaps the visible procedural orange shell for the loaded 12-pin connector. The pins, their numbers,
-// the port and its collider stay procedural: the pins are moved onto the model's contact grid.
-function dressRealisticConnector(port) {
-  const k = CONNECTOR_SCALE,
+// Swaps the visible procedural shell of a connector for its loaded model. The pins, their numbers, the port
+// and its collider stay procedural: the pins are moved onto the model's contact grid. `plug` describes the model:
+// body, scales (kz is the depth one), face and shell back (model metres), body width, height and vertical
+// centre (scene units) and how much the procedural pin grid has to shrink or grow (xScale, yScale) to match
+// the model's. Optional: pinInset (how far the contacts sit behind the face), jacketGap (boot to cable jacket)
+// and pickScale (size of the pin pick spheres and numbers, for small connectors).
+function dressRealisticPlug(port, plug) {
+  const { k, kz, faceZ, shellBackZ, xScale, yScale } = plug,
+    { pinInset = 0.07, jacketGap = 0.32, pickScale = 1 } = plug,
     FACE = CONNECTOR_FACE,
-    kz = k * CONNECTOR_DEPTH_SCALE,
-    BACK = FACE - CONNECTOR_MODEL.faceZ * kz; // the rubber boot, behind the shell
-  const xPitch = (CONNECTOR_MODEL.pitch * k) / 0.215, // procedural pitch -> model pitch
-    yRow = (CONNECTOR_MODEL.rowY * k) / 0.2;
+    BACK = FACE - faceZ * kz; // the rubber boot, behind the shell
   port.group.traverse((m) => {
     if (!m.isMesh || m.userData.colliderOnly) return;
-    const isPin = !!m.userData.pin;
-    if (isPin || m.userData.setText) {
-      m.position.x *= xPitch;
-      m.position.y *= yRow;
+    if (m.userData.pin || m.userData.setText) {
+      m.position.x *= xScale;
+      m.position.y *= yScale;
+      m.scale.multiplyScalar(pickScale);
       if (m.userData.setText) m.position.z = FACE + 0.01; // numbers lie on the face
-      else if (m.position.z > 0 && m.position.z < FACE) m.position.z = FACE - 0.07; // contacts sit inside the face
+      else if (m.position.z > 0 && m.position.z < FACE) m.position.z = FACE - pinInset; // contacts sit inside the face
       else if (m.position.z < -0.2) m.position.z = BACK - 0.03; // rear access points, behind the boot
     }
     // Only the pin numbers stay drawn; the rest is the model.
     if (!m.userData.setText) m.visible = false;
   });
-  const model = conn12.body.clone(true);
+  const model = plug.body.clone(true);
   model.scale.set(k, k, kz);
   model.position.set(0, 0, BACK);
   port.group.add(model);
   // The cable leaves the rear of the boot.
   port.rearZ = BACK;
-  port.jacketZ = BACK - 0.32;
+  port.jacketZ = BACK - jacketGap;
   // Collider: the shell only (the boot is a thin tube behind it), so the box hugs what is drawn.
-  const depth = (CONNECTOR_MODEL.faceZ - CONNECTOR_MODEL.shellBackZ) * kz;
+  const depth = (faceZ - shellBackZ) * kz;
   const proxy = port.colliders[0];
-  proxy.userData.solid.set((CONNECTOR_MODEL.width * k) / 2, (CONNECTOR_MODEL.height * k) / 2, depth / 2);
-  proxy.position.set(0, 0, FACE - depth / 2);
+  proxy.userData.solid.set(plug.width / 2, plug.height / 2, depth / 2);
+  proxy.position.set(0, plug.centerY, FACE - depth / 2);
+  // The guidance ring floats just above the face, over the contact (which sits pinInset behind it).
+  for (const pin of port.pins) pin.userData.ringLift = FACE + 0.01 - pin.position.z;
+  assignPinHitboxes(port);
+}
+
+// Pin hitboxes of the realistic ports: every pin gets a radius (userData.pinRadius, scene units) that is a
+// fraction of the distance to its nearest neighbour, so it fits the real contacts however small they are.
+// It sizes the pick sphere, the guidance ring and the pin hitbox shown by "Show hitboxes".
+export const PIN_HITBOX_RATIO = 0.3;
+function assignPinHitboxes(port) {
+  port.group.updateWorldMatrix(true, true);
+  const at = port.pins.map((pin) => pin.getWorldPosition(new T.Vector3()));
+  let nearest = Infinity;
+  for (let a = 0; a < at.length; a++) for (let b = a + 1; b < at.length; b++) nearest = Math.min(nearest, at[a].distanceTo(at[b]));
+  if (!Number.isFinite(nearest)) return;
+  const radius = PIN_HITBOX_RATIO * nearest,
+    scale = port.group.scale.x;
+  for (const pin of port.pins) pin.userData.pinRadius = radius;
+  port.group.traverse((m) => {
+    // The invisible pick spheres (front and rear) take the same radius.
+    if (m.userData.pin && m.geometry?.type === "SphereGeometry") m.scale.setScalar(radius / (m.geometry.parameters.radius * scale));
+  });
+}
+// The orange 12-pin (2 x 6 contacts).
+function dressRealisticConnector(port) {
+  const k = CONNECTOR_SCALE,
+    m = CONNECTOR_MODEL;
+  dressRealisticPlug(port, {
+    body: conn12.body,
+    k,
+    kz: k * CONNECTOR_DEPTH_SCALE,
+    faceZ: m.faceZ,
+    shellBackZ: m.shellBackZ,
+    width: m.width * k,
+    height: m.height * k,
+    centerY: 0,
+    xScale: (m.pitch * k) / 0.215, // procedural pitch -> model pitch
+    yScale: (m.rowY * k) / 0.2,
+  });
+}
+// The white 4-pin of the upper harness (2 x 2 contacts, locking tab towards +y).
+function dressRealisticConnector4(port) {
+  const k = CONNECTOR4_SCALE,
+    m = CONNECTOR4_MODEL,
+    scale = ((m.pitch / 2) * k) / 0.155; // procedural contacts are at +-0.155
+  dressRealisticPlug(port, {
+    body: conn4.body,
+    k,
+    kz: k * CONNECTOR4_DEPTH_SCALE,
+    faceZ: m.faceZ,
+    shellBackZ: m.shellBackZ,
+    width: m.width * k,
+    height: (m.yMax - m.yMin) * k,
+    centerY: ((m.yMax + m.yMin) / 2) * k,
+    xScale: scale,
+    yScale: scale,
+    pinInset: (m.faceZ - 0.025) * k * CONNECTOR4_DEPTH_SCALE, // the contacts end 3 mm behind the face
+    jacketGap: 0.15, // the boot is tiny: the cable jacket starts close behind it
+    pickScale: scale, // pin pick spheres and numbers shrink with the grid, or they would overlap
+  });
 }
 export function makeHarness(type, position, spare = false) {
   const p = addPart(type, spare);
@@ -263,7 +336,8 @@ export function makeHarness(type, position, spare = false) {
   if (type === "upper") {
     const orange = makePort(p, "orange", p.id + "-orange", V(-1, 0.95, 0), Q(0, 0.4, Math.PI / 2), p.root);
     if (conn12.body) dressRealisticConnector(orange);
-    makePort(p, "up4", p.id + "-up4", V(1, 0.62, 0), Q(0, 0, Math.PI / 2), p.root);
+    const up4 = makePort(p, "up4", p.id + "-up4", V(1, 0.62, 0), Q(0, 0, Math.PI / 2), p.root);
+    if (conn4.body) dressRealisticConnector4(up4);
   } else {
     makePort(p, "low4", p.id + "-low4", V(-1, 0.62, 0), Q(0, Math.PI, Math.PI / 2), p.root);
     makePort(p, "circular", p.id + "-circular", V(1, 0.7, 0), Q(0, 0, Math.PI / 2), p.root);

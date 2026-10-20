@@ -14,6 +14,42 @@ const LABEL_MIN = 0.6;
 const labels = new Map(); // collider -> { sprite, text }
 const labelGroup = new T.Group(); // apart from hitboxGroup, which holds exactly one box per collider
 scene.add(labelGroup);
+// Pin hitboxes: one wire sphere per pin that has a radius (the realistic models), yellow to tell them from the
+// colliders. Their size is the pin's pick sphere and the guidance ring.
+const pinGroup = new T.Group();
+scene.add(pinGroup);
+const pinBoxes = new Map(); // pin mesh -> wire sphere
+const pinWire = new T.SphereGeometry(1, 10, 6);
+const pinWorld = new T.Vector3();
+function updatePinHitboxes() {
+  const live = new Set();
+  for (const part of S.parts)
+    for (const port of part.ports)
+      for (const pin of port.pins) {
+        const r = pin.userData.pinRadius;
+        if (!r) continue;
+        live.add(pin);
+        let box = pinBoxes.get(pin);
+        if (!box) {
+          box = new T.LineSegments(
+            new T.WireframeGeometry(pinWire),
+            new T.LineBasicMaterial({ color: 0xffd23f, depthTest: false, transparent: true, opacity: 0.9 }),
+          );
+          box.renderOrder = 1002;
+          box.raycast = () => {};
+          pinGroup.add(box);
+          pinBoxes.set(pin, box);
+        }
+        box.position.copy(pin.getWorldPosition(pinWorld));
+        box.scale.setScalar(r);
+      }
+  for (const [pin, box] of pinBoxes)
+    if (!live.has(pin)) {
+      box.material.dispose();
+      pinGroup.remove(box);
+      pinBoxes.delete(pin);
+    }
+}
 const worldScale = new T.Vector3();
 const labelBox = new T.Box3();
 const labelCenter = new T.Vector3();
@@ -58,14 +94,15 @@ function dropLabel(m) {
 $("hitboxes").onclick = () => {
   hitboxesVisible = !hitboxesVisible;
   $("hitboxes").setAttribute("aria-pressed", String(hitboxesVisible));
-  hitboxGroup.visible = labelGroup.visible = hitboxesVisible;
+  hitboxGroup.visible = labelGroup.visible = pinGroup.visible = hitboxesVisible;
   $("hitboxes").textContent = hitboxesVisible
     ? tr("Ocultar hitboxes", "Hide hitboxes")
     : tr("Mostrar hitboxes", "Show hitboxes");
 };
 export function updateHitboxes() {
-  hitboxGroup.visible = labelGroup.visible = hitboxesVisible;
+  hitboxGroup.visible = labelGroup.visible = pinGroup.visible = hitboxesVisible;
   if (!hitboxesVisible) return;
+  updatePinHitboxes();
   for (const [m, h] of hitboxMap)
     if (!S.allColliders.includes(m)) {
       h.geometry.dispose();

@@ -52,6 +52,7 @@ export function updatePinGuidance() {
         can: 0x42e8df,
         warning: 0xffc15b,
       }[target.tone];
+      // The ring fits the pin's hitbox when it has one (realistic models); procedural pins keep the default size.
       const ring = new T.Mesh(
         new T.RingGeometry(0.075, 0.115, 32),
         new T.MeshBasicMaterial({
@@ -62,6 +63,7 @@ export function updatePinGuidance() {
         }),
       );
       ring.renderOrder = 1200;
+      if (pin.userData.pinRadius) ring.scale.setScalar(pin.userData.pinRadius / 0.075);
       ring.raycast = () => {};
       pinHighlightGroup.add(ring);
       const badge = document.createElement("span");
@@ -87,7 +89,7 @@ export function updatePinGuidance() {
           port: h.port,
           n: h.n,
         },
-        0.08,
+        h.pin.userData.ringLift ?? 0.08,
       ),
       world = pose.position;
     h.ring.position.copy(world);

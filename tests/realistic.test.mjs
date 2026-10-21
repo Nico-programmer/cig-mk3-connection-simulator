@@ -28,7 +28,7 @@ app.em3d.body=eg;app.em3d.box=new T.Box3(new T.Vector3(-0.7,-1.5,-0.4),new T.Vec
 // And the 12-pin connector model (a plain box; the real one is 0.052 x 0.032 x 0.038 m).
 const cg=new T.Group();cg.add(new T.Mesh(new T.BoxGeometry(0.052,0.032,0.038),new T.MeshBasicMaterial()));app.conn12.body=cg;
 // And the white 4-pin model (0.021 x 0.017 x 0.028 m).
-const c4=new T.Group();c4.add(new T.Mesh(new T.BoxGeometry(0.021,0.017,0.028),new T.MeshBasicMaterial()));app.conn4.body=c4;
+const c4=new T.Group();c4.add(new T.Mesh(new T.BoxGeometry(0.021,0.017,0.028),new T.MeshBasicMaterial()));app.conn4.body=c4;app.conn4f.body=c4.clone(true);const cc=new T.Group();cc.add(new T.Mesh(new T.BoxGeometry(0.028,0.028,0.03),new T.MeshBasicMaterial()));app.connC.body=cc;
 for(const code of ["F4","F5","F1"]){
   app.buildScenario(code);
   assert(app.parts.some((p)=>p.realistic),"The realistic MK3 is built for "+code);
@@ -55,5 +55,19 @@ for(const code of ["F4","F5","F1"]){
     app.select(p);app.setWorldPosition(p.group,app.worldPos(q).add(app.V(0,1.5,0)));
     assert(app.connectSelected(),"Button connects "+p.kind+" to "+q.kind+" with the realistic MK3 ("+code+")");
   }
+}
+// The circular plug and the Expansion Module's port: once mated, pin n of one is on pin n of the other, and the
+// back-probing point is behind the plug (not inside its body).
+{
+  app.buildScenario("F4");
+  const lower=app.parts.find((p)=>p.type==="lower"&&!p.spare),em=app.parts.find((p)=>p.type==="em"&&!p.spare);
+  const plug=lower.ports[1],port=em.ports[0];
+  if(plug.joint){const m=plug.mate;app.detach(plug);plug.blockMate=m.blockMate=null;}
+  app.select(plug);app.setWorldPosition(plug.group,app.worldPos(port).add(app.V(0,1.5,0)));
+  assert(app.connectSelected(),"The circular plug connects to the Expansion Module");
+  const worst=Math.max(...port.pins.map((pin)=>{const n=pin.userData.pin.n,other=plug.pins.find((q)=>q.userData.pin.n===n);const a=plug.group.worldToLocal(pin.getWorldPosition(new T.Vector3())),b=plug.group.worldToLocal(other.getWorldPosition(new T.Vector3()));return Math.hypot(a.x-b.x,a.y-b.y);}));
+  assert(worst<0.02,"Mated circular plug and EM port: every pin n lines up sideways on both halves (worst "+worst.toFixed(4)+")");
+  const pose=app.probePose({port:plug,n:1},0.08).position;
+  assert(plug.group.worldToLocal(pose.clone()).z<plug.rearZ,"The guidance point of a mated circular pin is behind the plug ("+plug.group.worldToLocal(pose.clone()).z.toFixed(2)+" < "+plug.rearZ.toFixed(2)+")");
 }
 console.log("Realistic MK3 (1.21) checks passed.");

@@ -1,5 +1,5 @@
 // Optional realistic connectors: the orange 12-pin of the upper harness (public/connector-12-pin-ligero.glb, a
-// Deutsch DT 12 receptacle) and its white 4-pin (public/connector_4pin_top_light.glb). Loaded once, before the
+// Deutsch DT 12 receptacle) and its white 4-pin (public/connector_4pin_top_light.glb), and its female half (public/connector_4pines_hembra_light.glb). Loaded once, before the
 // first scenario is built; each one that is not available (tests, file://, ?model=0, load error) keeps its
 // procedural body. The model contacts are regular grids (2 x 6 and 2 x 2); the procedural pins are moved onto them.
 import * as T from "three";
@@ -32,6 +32,25 @@ export const CONNECTOR4_DEPTH_SCALE = 1;
 // at +-0.0032), in model metres.
 export const CONNECTOR4_MODEL = { faceZ: 0.028, shellBackZ: 0.008, width: 0.021, yMin: -0.0077, yMax: 0.0093, pitch: 0.0064 };
 export const conn4 = { body: null };
+// Its mating half, the white 4-pin of the lower harness (public/connector_4pines_hembra_light.glb): the same body
+// and terminals, with the locking latch on the -x side (x from -0.0129 to 0.0105) instead of on top.
+export const CONNECTOR4F_MODEL = { faceZ: 0.028, shellBackZ: 0.008, xMin: -0.0129, xMax: 0.0105, yMin: -0.0077, yMax: 0.0077, pitch: 0.0064 };
+export const conn4f = { body: null };
+// The circular 12-pin of the lower harness (public/connector_circular_12p_light.glb), a 28 mm round plug. Model
+// metres -> scene units: 15.2 gives a shell 0.43 across, just over the Expansion Module's connector cylinder (0.40
+// across) that it fits over; the hexagonal nut behind it (0.50 across the flats) stays visible around it. The plug is
+// stretched 1.5 x along its axis (0.43 long), as the real one is longer than a plain 28 mm cylinder.
+export const CONNECTORC_SCALE = 15.2;
+export const CONNECTORC_DEPTH_SCALE = 1.5;
+export const CONNECTORC_MODEL = {
+  faceZ: 0.03,
+  shellBackZ: 0.01,
+  radius: 0.014,
+  contactZ: 0.0249,
+  outer: [[0.0018, 0.0054], [-0.0018, 0.0054], [-0.0054, 0.0018], [-0.0054, -0.0018], [-0.0018, -0.0054], [0.0018, -0.0054], [0.0054, -0.0018], [0.0054, 0.0018]],
+  inner: [[0.0018, 0.0018], [-0.0018, 0.0018], [-0.0018, -0.0018], [0.0018, -0.0018]],
+};
+export const connC = { body: null };
 
 const here = (path) => new URL(path, import.meta.url).href;
 
@@ -73,6 +92,8 @@ export async function loadConnectorModel(timeoutMs = 8000) {
   const ready = await Promise.all([
     loadOptional("12-pin connector", "connector-12-pin-ligero.glb", conn12, timeoutMs),
     loadOptional("4-pin connector", "connector_4pin_top_light.glb", conn4, timeoutMs),
+    loadOptional("4-pin female connector", "connector_4pines_hembra_light.glb", conn4f, timeoutMs),
+    loadOptional("circular connector", "connector_circular_12p_light.glb", connC, timeoutMs),
   ]);
   return ready.every(Boolean);
 }

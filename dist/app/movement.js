@@ -1,5 +1,6 @@
 // Moving and rotating the selected part or connector.
 import { updateBypassCables } from "./bypass.js";
+import { updateSupplyCable } from "./supply-cable.js";
 import { HARNESS_REACH, jacketEnd, refreshCables, updateCable } from "./cables.js";
 import { moveWithSlide, refreshColliders, rotateChecked } from "./colliders.js";
 import { matingInfo } from "./connection.js";
@@ -56,6 +57,7 @@ export function moveSelected(desired) {
     }
     updateCable(S.selected.part);
     updateBypassCables();
+    updateSupplyCable();
     refreshProbes();
     refreshColliders();
   }

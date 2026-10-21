@@ -6,6 +6,7 @@
 import * as T from "three";
 import { material } from "../geometry.js";
 import { updateBypassCables } from "./bypass.js";
+import { updateSupplyCable } from "./supply-cable.js";
 import { refreshColliders } from "./colliders.js";
 import { refreshProbes } from "./probes.js";
 import { Rope } from "./rope.js";
@@ -81,6 +82,7 @@ export function updateHarnesses(dt) {
 export function refreshCables() {
   S.parts.forEach(updateCable);
   updateBypassCables();
+  updateSupplyCable();
   refreshProbes();
   refreshColliders();
 }

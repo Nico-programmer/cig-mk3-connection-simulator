@@ -24,6 +24,9 @@ export function resetProbeTools() {
     p.group.rotation.set(-Math.PI / 2, 0, 0);
   });
 }
+// Where a connected connector is probed from behind: just behind its rear terminals (-0.35 for the procedural
+// ones; a realistic plug has its own rear, behind its boot).
+const rearAccessZ = (port) => (port.rearZ !== undefined ? port.rearZ - 0.03 : -0.35);
 // Position of probePose() without its approach-direction search. With the default
 // clearance (0.04) the direction is scaled by zero, so the position never depends on
 // it: this returns exactly probePose(contact).position at a fraction of the cost.
@@ -34,7 +37,7 @@ export function probeTargetPosition(contact, clearance = 0.04) {
   if (!port.mate) return pin.getWorldPosition(V()).addScaledVector(forward(port), clearance);
   const access = ["screen", "em"].includes(port.kind) ? port.mate : port,
     local = access.group.worldToLocal(pin.getWorldPosition(V()));
-  local.z = -0.35;
+  local.z = rearAccessZ(access);
   return access.group.localToWorld(local.clone());
 }
 // Closed joints are measured at the harness's rear terminals (back-probing),
@@ -49,10 +52,10 @@ export function probePose(contact, clearance = 0.04) {
     };
   const access = ["screen", "em"].includes(port.kind) ? port.mate : port,
     local = access.group.worldToLocal(pin.getWorldPosition(V()));
-  local.z = -0.35;
+  local.z = rearAccessZ(access);
   const position = access.group.localToWorld(local.clone()),
     base = worldQ(access),
-    candidates = [V(local.x, local.y, -0.35).normalize(), V(0, 0, -1)];
+    candidates = [V(local.x, local.y, local.z).normalize(), V(0, 0, -1)];
   for (let i = 0; i < 16; i++)
     candidates.push(V(Math.cos((i * Math.PI) / 8), Math.sin((i * Math.PI) / 8), -0.08).normalize());
   // Every tested segment stays within 1.08 of `position` and is swept with radius <= 0.17,

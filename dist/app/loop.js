@@ -11,6 +11,7 @@ import { updateLeads } from "./probes.js";
 import { beginRopeFrame } from "./rope.js";
 import { updateHarnesses } from "./cables.js";
 import { updateBypassRopes } from "./bypass.js";
+import { updateSupplyRope } from "./supply-cable.js";
 import { paintScreen } from "./screens.js";
 import { V, tr } from "./util.js";
 import { flyCamera, guardCamera, holdFlyPosition, restoreCameraDesired } from "./view.js";
@@ -44,6 +45,7 @@ export function animate(ms) {
   updateLeads(dt);
   updateHarnesses(dt);
   updateBypassRopes(dt);
+  updateSupplyRope(dt);
   lastFrameMs = ms;
   if (S.drag && S.cameraMotion) {
     ray.setFromCamera(pointer, camera);

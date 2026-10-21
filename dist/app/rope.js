@@ -136,7 +136,9 @@ export class Rope {
   // getEnds(): { a, aDir, b, bDir } world points and the directions the cable leaves them.
   // lengthFor(distance): rest length for a given end-to-end distance.
   // ignores(mesh): solids this rope passes (e.g. the probe it is attached to).
-  constructor({ count = 64, radius, color, getEnds, lengthFor, maxLength = Infinity, ignores = () => false, floorLayout = false }) {
+  // passive: other cables do not avoid this one (it lies over them, they stay as they are).
+  constructor({ count = 64, radius, color, getEnds, lengthFor, maxLength = Infinity, ignores = () => false, floorLayout = false, passive = false }) {
+    this.passive = passive;
     this.n = count;
     this.floorLayout = floorLayout;
     this.maxLength = maxLength;
@@ -513,7 +515,7 @@ export class Rope {
       };
     let n = 0;
     for (const other of ROPES) {
-      if (other === this || !other.box || !overlap(box, other.box, other.radius)) continue;
+      if (other === this || other.passive || !other.box || !overlap(box, other.box, other.radius)) continue;
       for (let j = 1; j < other.n; j++) add(other.pos[j - 1], other.pos[j], other.radius, other), n++;
     }
     for (const piece of STATIC_PIECES)

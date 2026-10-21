@@ -1,6 +1,6 @@
 // Builders for the MK3 screen, Expansion Module and both harnesses.
 import * as T from "three";
-import { box, cylinder, label, makePort, material, palette } from "../geometry.js";
+import { box, cylinder, label, makePort, material, palette, pinsLayout } from "../geometry.js";
 import { updateCable } from "./cables.js";
 import { MK3_SCALE, MK3_SCREEN, mk3 } from "./model-mk3.js";
 import { em3d } from "./model-em.js";
@@ -8,16 +8,25 @@ import {
   CONNECTOR4_DEPTH_SCALE,
   CONNECTOR4_MODEL,
   CONNECTOR4_SCALE,
+  CONNECTOR4F_MODEL,
+  CONNECTORC_DEPTH_SCALE,
+  CONNECTORC_MODEL,
+  CONNECTORC_SCALE,
   CONNECTOR_DEPTH_SCALE,
   CONNECTOR_MODEL,
   CONNECTOR_SCALE,
   conn12,
   conn4,
+  conn4f,
+  connC,
 } from "./model-connector.js";
 
 // Realistic 12-pin connector: where its face sits in its own frame (the mating distance is measured to it) and how
 // far behind the MK3 port origin that face ends up: just above the floor of the recess (measured: floor -0.125,
 // back plate -0.03, side ears +0.14), so the plug is seated in it and no gap shows.
+// The two white 4-pins slide into each other, as in the photo of the real pair: their faces (0.19 from each origin)
+// would meet at 0.38; at 0.24 the male half is 0.14 inside the female shell (half of its 0.29 depth).
+const FOUR_PIN_MATE = 0.24;
 const CONNECTOR_FACE = 0.19,
   CONNECTOR_SEAT = -0.1;
 import { dynamic } from "./scene.js";
@@ -228,8 +237,18 @@ function dressRealisticEM(p, { hull, plates, names, port, leds }) {
   const PORT_SCALE = 0.4;
   port.group.scale.setScalar(PORT_SCALE);
   port.group.position.set(em3d.port.x, em3d.port.y + 1.25, em3d.port.z + 0.11 * PORT_SCALE);
+  // With the realistic circular plug, the port's pins sit where that plug's contacts are (mirrored, since the plug
+  // meets it face to face), so the pins, the guidance rings and the rear probing line up on both halves.
+  const remap = connC.body
+    ? contactRemap(pinsLayout("em"), (n) => {
+        const [x, y] = circularContacts().get(n);
+        return [-x / PORT_SCALE, y / PORT_SCALE];
+      }, { inner: 0.05 / PORT_SCALE, by: 0.05 / PORT_SCALE })
+    : null;
   port.group.traverse((m) => {
-    if (m.isMesh) m.visible = !!(m.userData.pin || m.userData.setText);
+    if (!m.isMesh) return;
+    m.visible = !!(m.userData.pin || m.userData.setText);
+    if (remap && (m.userData.pin || m.userData.setText)) [m.position.x, m.position.y] = remap(m.position.x, m.position.y);
   });
   assignPinHitboxes(port);
 }
@@ -240,15 +259,18 @@ function dressRealisticEM(p, { hull, plates, names, port, leds }) {
 // the model's. Optional: pinInset (how far the contacts sit behind the face), jacketGap (boot to cable jacket)
 // and pickScale (size of the pin pick spheres and numbers, for small connectors).
 function dressRealisticPlug(port, plug) {
-  const { k, kz, faceZ, shellBackZ, xScale, yScale } = plug,
+  const { k, kz, faceZ, shellBackZ, xScale, yScale, remap } = plug,
     { pinInset = 0.07, jacketGap = 0.32, pickScale = 1 } = plug,
     FACE = CONNECTOR_FACE,
     BACK = FACE - faceZ * kz; // the rubber boot, behind the shell
   port.group.traverse((m) => {
     if (!m.isMesh || m.userData.colliderOnly) return;
     if (m.userData.pin || m.userData.setText) {
-      m.position.x *= xScale;
-      m.position.y *= yScale;
+      if (remap) [m.position.x, m.position.y] = remap(m.position.x, m.position.y, !!m.userData.setText);
+      else {
+        m.position.x *= xScale;
+        m.position.y *= yScale;
+      }
       m.scale.multiplyScalar(pickScale);
       if (m.userData.setText) m.position.z = FACE + 0.01; // numbers lie on the face
       else if (m.position.z > 0 && m.position.z < FACE) m.position.z = FACE - pinInset; // contacts sit inside the face
@@ -261,6 +283,8 @@ function dressRealisticPlug(port, plug) {
   model.scale.set(k, k, kz);
   model.position.set(0, 0, BACK);
   port.group.add(model);
+  // Plugs that slide into each other (the white 4-pins): the mating distance is set by the plug (see align).
+  if (plug.mateOffset !== undefined) port.mateOffset = plug.mateOffset;
   // The cable leaves the rear of the boot.
   port.rearZ = BACK;
   port.jacketZ = BACK - jacketGap;
@@ -268,7 +292,7 @@ function dressRealisticPlug(port, plug) {
   const depth = (faceZ - shellBackZ) * kz;
   const proxy = port.colliders[0];
   proxy.userData.solid.set(plug.width / 2, plug.height / 2, depth / 2);
-  proxy.position.set(0, plug.centerY, FACE - depth / 2);
+  proxy.position.set(plug.centerX ?? 0, plug.centerY, FACE - depth / 2);
   // The guidance ring floats just above the face, over the contact (which sits pinInset behind it).
   for (const pin of port.pins) pin.userData.ringLift = FACE + 0.01 - pin.position.z;
   assignPinHitboxes(port);
@@ -328,6 +352,85 @@ function dressRealisticConnector4(port) {
     pinInset: (m.faceZ - 0.025) * k * CONNECTOR4_DEPTH_SCALE, // the contacts end 3 mm behind the face
     jacketGap: 0.15, // the boot is tiny: the cable jacket starts close behind it
     pickScale: scale, // pin pick spheres and numbers shrink with the grid, or they would overlap
+    mateOffset: FOUR_PIN_MATE,
+  });
+}
+// The white 4-pin of the lower harness: the female half of the upper one (same size, latch on the side).
+function dressRealisticConnector4F(port) {
+  const k = CONNECTOR4_SCALE,
+    m = CONNECTOR4F_MODEL,
+    scale = ((m.pitch / 2) * k) / 0.155;
+  dressRealisticPlug(port, {
+    body: conn4f.body,
+    k,
+    kz: k * CONNECTOR4_DEPTH_SCALE,
+    faceZ: m.faceZ,
+    shellBackZ: m.shellBackZ,
+    width: (m.xMax - m.xMin) * k,
+    height: (m.yMax - m.yMin) * k,
+    centerX: ((m.xMax + m.xMin) / 2) * k,
+    centerY: 0,
+    xScale: scale,
+    yScale: scale,
+    pinInset: (m.faceZ - 0.025) * k * CONNECTOR4_DEPTH_SCALE,
+    jacketGap: 0.15,
+    pickScale: scale,
+    mateOffset: FOUR_PIN_MATE,
+  });
+}
+// The circular 12-pin. The procedural pins are 8 on an outer ring and 4 on an inner diamond; the model has 8 on a ring
+// and 4 in a square turned 45 degrees: outer pins go to the model's outer contact at the same angle, inner pins to the
+// model's inner contact at that angle + 45 degrees. Returns, per pin number, where its contact is in the plug's own
+// frame (scene units). The Expansion Module's port uses the same table, mirrored, so the two halves line up.
+function circularContacts() {
+  const k = CONNECTORC_SCALE,
+    m = CONNECTORC_MODEL,
+    angle = (x, y) => Math.atan2(y, x),
+    gap = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b))),
+    byN = new Map();
+  for (const p of pinsLayout("circular")) {
+    const outer = Math.hypot(p.x, p.y) > 0.25,
+      list = outer ? m.outer : m.inner,
+      want = angle(p.x, p.y) + (outer ? 0 : Math.PI / 4);
+    byN.set(p.n, list.reduce((best, c) => (gap(angle(...c), want) < gap(angle(...best), want) ? c : best)).map((v) => v * k));
+  }
+  return byN;
+}
+// remap(x, y, isLabel) for dressRealisticPlug. A pin moves onto its contact. Its number label goes beside it: on the
+// 8 outer contacts, just outside the ring (radially, so it never covers another contact); on the 4 inner ones, over
+// the contact itself (every side of them is another contact). `layout` is the port's own procedural pin layout,
+// `place(n)` gives where its contact is (in the port's own units) and `outward` how far outside the ring a label sits.
+function contactRemap(layout, place, outward) {
+  return (x, y, isLabel) => {
+    let best = layout[0];
+    for (const p of layout) if (Math.hypot(p.x - x, p.y - y) < Math.hypot(best.x - x, best.y - y)) best = p;
+    const [cx, cy] = place(best.n);
+    if (!isLabel) return [cx, cy];
+    const r = Math.hypot(cx, cy);
+    return r * 0.9 > outward.inner ? [cx + (cx / r) * outward.by, cy + (cy / r) * outward.by] : [cx, cy];
+  };
+}
+function dressRealisticCircular(port) {
+  const k = CONNECTORC_SCALE,
+    m = CONNECTORC_MODEL,
+    contacts = circularContacts(),
+    shrink = 0.5;
+  dressRealisticPlug(port, {
+    body: connC.body,
+    k,
+    kz: k * CONNECTORC_DEPTH_SCALE,
+    faceZ: m.faceZ,
+    shellBackZ: m.shellBackZ,
+    width: 2 * m.radius * k,
+    height: 2 * m.radius * k,
+    centerY: 0,
+    pinInset: (m.faceZ - m.contactZ) * k * CONNECTORC_DEPTH_SCALE,
+    jacketGap: 0.15,
+    pickScale: shrink,
+    // The face sits 0.036 above the Expansion Module's contact face, so its recess (0.09 deep) wraps the connector barrel
+    // and the plug sits on the EM, with no gap (the EM port origin is 0.044 above that face, the plug face 0.19 from its own).
+    mateOffset: 0.19 - 0.008,
+    remap: contactRemap(pinsLayout("circular"), (n) => contacts.get(n), { inner: 0.05, by: 0.05 }),
   });
 }
 export function makeHarness(type, position, spare = false) {
@@ -339,8 +442,10 @@ export function makeHarness(type, position, spare = false) {
     const up4 = makePort(p, "up4", p.id + "-up4", V(1, 0.62, 0), Q(0, 0, Math.PI / 2), p.root);
     if (conn4.body) dressRealisticConnector4(up4);
   } else {
-    makePort(p, "low4", p.id + "-low4", V(-1, 0.62, 0), Q(0, Math.PI, Math.PI / 2), p.root);
-    makePort(p, "circular", p.id + "-circular", V(1, 0.7, 0), Q(0, 0, Math.PI / 2), p.root);
+    const low4 = makePort(p, "low4", p.id + "-low4", V(-1, 0.62, 0), Q(0, Math.PI, Math.PI / 2), p.root);
+    if (conn4f.body) dressRealisticConnector4F(low4);
+    const circular = makePort(p, "circular", p.id + "-circular", V(1, 0.7, 0), Q(0, 0, Math.PI / 2), p.root);
+    if (connC.body) dressRealisticCircular(circular);
   }
   p.cableGroup = new T.Group();
   p.root.add(p.cableGroup);

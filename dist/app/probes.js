@@ -35,7 +35,7 @@ export function probeTargetPosition(contact, clearance = 0.04) {
   if (port.mate && clearance !== 0.04) return probePose(contact, clearance).position;
   const pin = port.pins.find((p) => p.userData.pin.n === n);
   if (!port.mate) return pin.getWorldPosition(V()).addScaledVector(forward(port), clearance);
-  const access = ["screen", "em"].includes(port.kind) ? port.mate : port,
+  const access = ["screen", "em"].includes(port.kind) || port.fixed ? port.mate : port,
     local = access.group.worldToLocal(pin.getWorldPosition(V()));
   local.z = rearAccessZ(access);
   return access.group.localToWorld(local.clone());
@@ -50,7 +50,7 @@ export function probePose(contact, clearance = 0.04) {
       position: pin.getWorldPosition(V()).addScaledVector(forward(port), clearance),
       quaternion: worldQ(port),
     };
-  const access = ["screen", "em"].includes(port.kind) ? port.mate : port,
+  const access = ["screen", "em"].includes(port.kind) || port.fixed ? port.mate : port,
     local = access.group.worldToLocal(pin.getWorldPosition(V()));
   local.z = rearAccessZ(access);
   const position = access.group.localToWorld(local.clone()),

@@ -15,13 +15,14 @@ export function selectedEntity(s) {
   return s.port ? s.port.group : s.part.root;
 }
 export function selectedPorts(s) {
-  return s.port && !["screen", "em"].includes(s.port.kind) ? [s.port] : s.part.ports;
+  // a connector carries the fixed ports mounted on it (the supply jack): they are part of what moves
+  return s.port && !["screen", "em"].includes(s.port.kind) ? [s.port, ...(s.port.carries ?? [])] : s.part.ports;
 }
 export function moveSelected(desired) {
-  if (!S.selected) return;
+  if (!S.selected || S.selected.port?.fixed) return;
   const entity = selectedEntity(S.selected),
     ports = selectedPorts(S.selected);
-  if (ports.some((p) => p.joint)) return;
+  if (ports.some((p) => p.joint && !p.fixed)) return;
   const from = entity.getWorldPosition(V()),
     before = entity.position.clone(),
     harnessEnd = S.selected.port && S.selected.part.cableGroup && entity === S.selected.port.group,
@@ -55,6 +56,7 @@ export function moveSelected(desired) {
         p.blockMate = null;
       }
     }
+    for (const jack of S.selected.port?.carries ?? []) if (jack.mate) updateCable(jack.mate.part);
     updateCable(S.selected.part);
     updateBypassCables();
     updateSupplyCable();
@@ -65,9 +67,9 @@ export function moveSelected(desired) {
 }
 // Each button press or arrow key turns 15° in five 3° checked increments.
 export function rotateSelected(axis, dir) {
-  if (!S.selected) return;
+  if (!S.selected || S.selected.port?.fixed) return;
   const ports = selectedPorts(S.selected);
-  if (ports.some((p) => p.joint)) return;
+  if (ports.some((p) => p.joint && !p.fixed)) return;
   const entity = selectedEntity(S.selected),
     worldAxis = V(axis === "x" ? 1 : 0, axis === "y" ? 1 : 0, axis === "z" ? 1 : 0);
   rotateChecked(entity, 5, (e) => e.rotateOnWorldAxis(worldAxis, (dir * Math.PI) / 60));

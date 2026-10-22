@@ -6,7 +6,7 @@ import { updateCable } from "./cables.js";
 import { refreshColliders } from "./colliders.js";
 import { align, attach, mateOffset } from "./connection.js";
 import { drawMeter } from "./meter.js";
-import { makeEM, makeHarness, makeScreen } from "./parts.js";
+import { makeEM, makeHarness, makeScreen, makeBypassLead, makeSupplyCable } from "./parts.js";
 import { refreshProbes, resetProbeTools } from "./probes.js";
 import { camera, controls, dynamic, lastCamera } from "./scene.js";
 import { forward, setWorldPosition, setWorldQuaternion, worldPos } from "./spatial.js";
@@ -89,6 +89,18 @@ export function buildScenario(code = "assembly", segment = "upper") {
       lower.ports[1].ring.rotation.z = Math.PI;
     }
     S.circuit.key = true;
+  }
+  // The supply cable starts plugged into the work harness. (Added last: the order of the parts above is relied on.)
+  const supply = makeSupplyCable();
+  align(supply.ports[0], upper.ports[2]);
+  attach(supply.ports[0], upper.ports[2]);
+  // and the two relay bypass cables into the lower harness
+  for (const i of [0, 1]) {
+    const lead = makeBypassLead(i),
+      jack = lower.ports.find((p) => p.leadIndex === i);
+    jack.required = true; // the EM needs its relay cables plugged in to work (electrical.js: relaysReady)
+    align(lead.ports[0], jack);
+    attach(lead.ports[0], jack);
   }
   S.circuit.parts = S.parts;
   S.circuit.powerUpper = upper;

@@ -11,6 +11,20 @@ import { Q } from "./util.js";
 import { restoreCamera } from "./view.js";
 import { S } from "./state.js";
 
+// The supply plug sits in the jack on the harness's 4-pin connector: while it is plugged in it is carried by the
+// jack (a child of its group), so the plug moves, and is checked for collisions, with the connector.
+const jackOf = (a, b) => [a, b].find((p) => ["supplyJack", "bypassJack"].includes(p.kind));
+function carryPlug(a, b) {
+  const jack = jackOf(a, b);
+  if (jack) jack.group.attach((jack === a ? b : a).group);
+}
+function releasePlug(a, b) {
+  const jack = jackOf(a, b);
+  if (jack) {
+    const plug = jack === a ? b : a;
+    plug.part.root.attach(plug.group);
+  }
+}
 export function attach(a, b, secured = true, thread = 6) {
   const j = {
     a,
@@ -22,6 +36,7 @@ export function attach(a, b, secured = true, thread = 6) {
   S.joints.push(j);
   a.mate = b;
   b.mate = a;
+  carryPlug(a, b);
   a.joint = j;
   b.joint = j;
   if (a.part?.type === "upper") S.circuit.powerUpper = a.part;
@@ -64,6 +79,7 @@ export function detach(p) {
   };
   p.joint = mate.joint = null;
   p.mate = mate.mate = null;
+  releasePlug(p, mate);
   S.joints.splice(S.joints.indexOf(j), 1);
   S.circuit.joints = S.joints;
 }
@@ -121,7 +137,7 @@ export function connectSelected() {
   const pair = nearbyPair();
   if (!pair) return false;
   let { p, q } = pair;
-  if (["screen", "em"].includes(p.kind)) {
+  if (["screen", "em"].includes(p.kind) || p.fixed) {
     [p, q] = [q, p];
   }
   const entity = p.group,
@@ -159,7 +175,7 @@ export function disconnectSelected() {
   const port = selectedPorts(S.selected).find((p) => p.joint);
   if (!port) return false;
   const mate = port.mate;
-  let p = ["screen", "em"].includes(port.kind) ? mate : port,
+  let p = ["screen", "em"].includes(port.kind) || port.fixed ? mate : port,
     q = p.mate;
   const oldJoint = {
       ...p.joint,

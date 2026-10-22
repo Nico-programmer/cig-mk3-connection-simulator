@@ -58,16 +58,17 @@ export function updateCable(p) {
   p.ports.forEach((port) => addWires(port, p));
   if (!p.rope) {
     p.rope = new Rope({
-      count: 48,
-      radius: 0.086,
+      count: p.ropeCount ?? 48,
+      passive: !!p.ropePassive,
+      radius: p.ropeRadius ?? 0.086,
       color: 0x0f161a,
       getEnds: () => {
         const a = jacketEnd(p.ports[0]),
           b = jacketEnd(p.ports[1]);
         return { a: a.point, aDir: a.dir, b: b.point, bDir: b.dir };
       },
-      lengthFor: harnessLength,
-      maxLength: HARNESS_MAX,
+      lengthFor: p.ropeLengthFor ?? harnessLength,
+      maxLength: p.ropeMaxLength ?? HARNESS_MAX,
     });
     p.rope.mesh.userData.part = p;
     p.cableGroup.add(p.rope.mesh);

@@ -57,7 +57,7 @@ clickContact(0,1);clickContact(1,2);assert(app.meterResult==='12.0 V','Complete 
 
 app.buildScenario('assembly');
 assert(!app.allColliders.some(m=>m.userData.cableOwner),'Cables are flexible (1.14): no harness or bypass cable volumes are registered as solids');assert(!app.allColliders.some(m=>m.userData.probeLead!==undefined),'Cables are flexible (1.14): meter leads are not registered as solids');assert(app.allColliders.some(m=>m.userData.probeIndex),'Probe body volumes registered');
-for(const part of app.parts)for(const port of part.ports){assert(port.colliders.length===1&&port.colliders[0].userData.colliderOnly,'Continuous connector hull '+port.kind);const center=app.colliderOf(port.colliders[0]).center;assert(!app.cameraSafe(center),'Camera cannot occupy connector '+port.kind);}
+for(const part of app.parts)for(const port of part.ports.filter(q=>q.colliders.length)){assert(port.colliders.length===1&&port.colliders[0].userData.colliderOnly,'Continuous connector hull '+port.kind);const center=app.colliderOf(port.colliders[0]).center;assert(!app.cameraSafe(center),'Camera cannot occupy connector '+port.kind);}
 for(const part of app.parts.filter(p=>['screen','em'].includes(p.type))){const inside=part.root.localToWorld(app.V(0,1.2,0));app.camera.position.copy(inside);app.lastCamera.copy(inside);app.guardCamera();assert(app.cameraSafe(app.camera.position),'Camera recovers when enclosed by '+part.type);}
 app.camera.position.set(12,13,22);app.lastCamera.copy(app.camera.position);
 let rigid=app.parts[2].ports[0];app.select(rigid);app.setWorldPosition(rigid.group,app.V(5.2,1,3));app.moveSelected(app.V(5.2,1,-10));assert(app.worldPos(rigid).z>.2,'Full hull stops a long sweep through EM');
@@ -122,8 +122,8 @@ for(const variant of ['middleUnsecured','middleTerminal']){
  const state=app.circuit.evaluate();key(true);assert(app.circuit.evaluate().screens[screen.id]===(variant==='middleUnsecured'?'normal':'spinner'),'Reseating fixes securing but retains defective terminal '+variant);key(false);
  if(variant==='middleTerminal'){
  const oldContact=upper.ports[1].openContactPins;assert(oldContact.has(3),'Fault belongs to upper 4-pin pin 3');
- disconnect(1,0);disconnect(2,0);upper.root.position.set(-7,0,6.5);app.refreshCables();
- const spare=app.parts[5];for(const [port,target] of [[spare.ports[0],screen.ports[0]],[spare.ports[1],lower.ports[0]]]){app.select(port);app.setWorldPosition(port.group,app.worldPos(target).add(app.V(0,1.2,0)));assert(app.connectSelected(),'Connect known-good upper replacement to '+target.kind);}
+ app.select(upper.ports[2]);assert(app.disconnectSelected(),'The supply cable is unplugged from the harness being replaced (key off first)');assert(app.circuit.evaluate().screens[screen.id]==='off','Without its supply cable the screen has no power');disconnect(1,0);disconnect(2,0);upper.root.position.set(-7,0,6.5);app.refreshCables();
+ const spare=app.parts[5];for(const [port,target] of [[spare.ports[0],screen.ports[0]],[spare.ports[1],lower.ports[0]]]){app.select(port);app.setWorldPosition(port.group,app.worldPos(target).add(app.V(0,1.2,0)));assert(app.connectSelected(),'Connect known-good upper replacement to '+target.kind);}const supplyPlug=app.parts.find(p=>p.type==='supply').ports[0];app.select(supplyPlug);app.setWorldPosition(supplyPlug.group,app.worldPos(spare.ports[2]).add(app.V(0,1.2,0)));assert(app.connectSelected(),'The supply cable is plugged into the replacement harness');
  assert(oldContact.has(3),'Removed harness retains its defective terminal');key(true);assert(app.circuit.evaluate().screens[screen.id]==='normal','Whole upper harness replacement restores actual communication');key(false);
  measure('continuity',spare.ports[0],9,lower.ports[1],1);assert(app.meterResult==='PASA','Replacement restores end-to-end conductor');
  // Move guide to verification and ensure its highlighting follows the installed spare.

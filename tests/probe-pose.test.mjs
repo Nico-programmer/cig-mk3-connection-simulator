@@ -23,7 +23,7 @@ function referencePose(contact,clearance=0.04){
   const {port,n}=contact,pin=port.pins.find(p=>p.userData.pin.n===n),V=(x=0,y=0,z=0)=>new T.Vector3(x,y,z);
   const q=g=>g.getWorldQuaternion(new T.Quaternion()),fwd=p=>V(0,0,1).applyQuaternion(q(p.group));
   if(!port.mate)return{position:pin.getWorldPosition(V()).addScaledVector(fwd(port),clearance),quaternion:q(port.group)};
-  const access=['screen','em'].includes(port.kind)?port.mate:port,local=access.group.worldToLocal(pin.getWorldPosition(V()));local.z=-0.35;
+  const access=['screen','em'].includes(port.kind)||port.fixed?port.mate:port,local=access.group.worldToLocal(pin.getWorldPosition(V()));local.z=-0.35;
   const position=access.group.localToWorld(local.clone()),base=q(access.group),candidates=[V(local.x,local.y,-0.35).normalize(),V(0,0,-1)];
   for(let i=0;i<16;i++)candidates.push(V(Math.cos(i*Math.PI/8),Math.sin(i*Math.PI/8),-0.08).normalize());
   const obstacles=S.allColliders.filter(m=>m.userData.probeIndex===undefined&&m.userData.probeLead===undefined).map(app.colliderOf);

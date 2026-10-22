@@ -30,12 +30,12 @@ function inspect(p,label){
   for(const q of P)check(Number.isFinite(q.x+q.y+q.z),`${label} ${p.id}: invalid point`);
   const ends=[cables.jacketEnd(p.ports[0]),cables.jacketEnd(p.ports[1])];
   check(P[0].distanceTo(ends[0].point)<1e-9&&P.at(-1).distanceTo(ends[1].point)<1e-9,`${label} ${p.id}: cable not attached at the jacket behind each connector`);
-  for(const port of p.ports){
+  for(const port of p.ports.filter(q=>q.colliders.length)){
     const box=app.colliderOf(port.colliders[0]),inv=box.rotation.clone().transpose();
     for(const q of P.slice(2,-2)){const l=q.clone().sub(box.center).applyMatrix3(inv),h=box.halfSize;
       check(!(Math.abs(l.x)<h.x&&Math.abs(l.y)<h.y&&Math.abs(l.z)<h.z),`${label} ${p.id}: cable passes through connector ${port.kind}`);}
   }
-  for(const q of P)check(q.y>=rope.groundAt()+R.radius-1e-3,`${label} ${p.id}: cable below the table (y ${q.y.toFixed(3)})`);
+  for(const q of P.slice(p.type==='supply'?3:0))check(q.y>=rope.groundAt()+R.radius-1e-3,`${label} ${p.id}: cable below the table (y ${q.y.toFixed(3)})`);
   let loop=0;for(const q of P)loop=Math.max(loop,q.distanceTo(P[0])+q.distanceTo(P.at(-1))-R.length);
   check(loop<0.05,`${label} ${p.id}: cable loop beyond its length`);
   check(R.length<=cables.HARNESS_MAX+1e-9,`${label} ${p.id}: cable longer than the harness`);
@@ -46,7 +46,7 @@ let checked=0;
 const settleAll=(label)=>{frames(240);for(const p of harnesses()){inspect(p,label);checked++;}};
 // ---- wires ----
 app.buildScenario('assembly');
-for(const p of harnesses())for(const port of p.ports){
+for(const p of harnesses())for(const port of p.ports.filter(q=>!q.fixed&&q.kind!=='supplyPlug')){
   check(port.wires?.length===4,`${port.id} has four coloured wires`);
   const colors=port.wires.map(w=>w.material.color.getHex());
   check(JSON.stringify(colors)===JSON.stringify([0xb33227,0x17191b,0xc5722e,0x755042]),`${port.id} wire colours red/black/orange/brown`);

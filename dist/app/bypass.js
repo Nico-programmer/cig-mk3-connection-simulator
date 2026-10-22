@@ -8,6 +8,7 @@ import { forward, setWorldPosition, setWorldQuaternion, worldPos, worldQ } from 
 import { Q, V } from "./util.js";
 import { Rope, groundAt, registerStaticCable } from "./rope.js";
 import { S } from "./state.js";
+import { jacketEnd } from "./cables.js";
 
 export function buildBypass() {
   S.bypassPorts = [];
@@ -108,8 +109,8 @@ function harnessBranch(i) {
 const slack = (extra, max) => (d) => Math.min(max, Math.max(1.2, d * 1.06 + extra));
 export const bypassRopes = [];
 const tapes = [];
-function rope(getEnds, lengthFor, stripe, maxLength) {
-  const r = new Rope({ count: 32, radius: RADIUS, color: BLACK, getEnds, lengthFor, maxLength, floorLayout: true });
+function rope(getEnds, lengthFor, stripe, maxLength, passive = false) {
+  const r = new Rope({ count: 32, radius: RADIUS, color: BLACK, getEnds, lengthFor, maxLength, floorLayout: true, passive });
   if (stripe) r.mesh.material = striped();
   scene.add(r.mesh);
   bypassRopes.push(r);
@@ -134,9 +135,11 @@ function ensureBypassCables() {
       tapes.push(tape);
       registerStaticCable(a, b, RADIUS);
       rope(() => {
-        const e = harnessBranch(i);
+        // to the plug that goes into the lower harness (its own jack behind the circular connector)
+        const lead = S.parts.find((q) => q.type === "bypassLead" && q.bypassIndex === (i === 1 ? 0 : 1)),
+          e = lead ? jacketEnd(lead.ports[0]) : harnessBranch(i);
         return { a: b.clone(), aDir: V(1, 0, 0), b: e.point, bDir: e.dir };
-      }, (d) => Math.min(20, Math.max(1.5, d * 1.12 + 0.6)), stripe, 20);
+      }, (d) => Math.min(20, Math.max(1.5, d * 1.12 + 0.6)), stripe, 20, true); // it ends inside the harness's jacket: it lies over it
     } else {
       const anchor = V(-10.7, TAPE_Y, i < 2 ? -0.4 : 0.8);
       rope(() => {

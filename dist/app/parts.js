@@ -4,6 +4,7 @@ import { box, cylinder, label, makePort, material, palette, pinsLayout } from ".
 import { updateCable } from "./cables.js";
 import { MK3_SCALE, MK3_SCREEN, mk3 } from "./model-mk3.js";
 import { em3d } from "./model-em.js";
+import { SUPPLY_EXIT } from "./supply-route.js";
 import {
   CONNECTOR4_DEPTH_SCALE,
   CONNECTOR4_MODEL,
@@ -27,6 +28,8 @@ import {
 // The two white 4-pins slide into each other, as in the photo of the real pair: their faces (0.19 from each origin)
 // would meet at 0.38; at 0.24 the male half is 0.14 inside the female shell (half of its 0.29 depth).
 const FOUR_PIN_MATE = 0.24;
+// The procedural supply plug and jack (without the models) are small, like the real ones next to the harness connectors.
+const SMALL_PROCEDURAL = 0.38;
 const CONNECTOR_FACE = 0.19,
   CONNECTOR_SEAT = -0.1;
 import { dynamic } from "./scene.js";
@@ -433,6 +436,58 @@ function dressRealisticCircular(port) {
     remap: contactRemap(pinsLayout("circular"), (n) => contacts.get(n), { inner: 0.05, by: 0.05 }),
   });
 }
+// The supply cable from the exit of its duct to the plug (the rest of it is fixed, see supply-cable.js). Like a
+// harness it is a rope between two ports: the plug, which moves, and an anchor at the exit of the duct, which does not.
+// The supply cable is just a cable that can be unplugged: the connection is not drawn (as the MK3's 12-pin recess), but its
+// ports, pins and colliders stay, so it still mates and separates.
+function hideCoupling(port) {
+  port.group.traverse((m) => {
+    if (m.isMesh) m.visible = false;
+    m.userData.ropeFree = true;
+    if (m.userData.solid) Object.assign(m.userData.solid, { x: 0.01, y: 0.01, z: 0.01 }); // nothing there to bump into or to block a probe
+  });
+}
+// One relay bypass cable's plug (bypass.js lays the cable itself): a part with just the plug, so it can be unplugged from
+// the lower harness and plugged back. Like the supply plug it is not drawn.
+export function makeBypassLead(index) {
+  const p = addPart("bypassLead", false);
+  p.bypassIndex = index;
+  const plug = makePort(p, "up4", p.id + "-plug", V(0, 0.6, 0), Q(0, 0, 0), p.root);
+  plug.kind = "bypassPlug";
+  if (conn4.body) dressRealisticConnector4(plug);
+  else plug.group.scale.setScalar(SMALL_PROCEDURAL);
+  plug.wires = [];
+  hideCoupling(plug);
+  finishPart(p);
+  return p;
+}
+export function makeSupplyCable(spare = false) {
+  const p = addPart("supply", spare);
+  p.ropeRadius = 0.06;
+  p.ropeCount = 28;
+  p.ropeLengthFor = (d) => Math.max(0.9, d * 1.15 + 0.2); // a short cable, not a harness
+  p.ropeMaxLength = 4;
+  p.ropePassive = true; // it lies over the other cables (the harness ones do not move for it)
+  const exit = SUPPLY_EXIT;
+  const anchor = new T.Group();
+  anchor.position.copy(exit.point);
+  anchor.rotation.y = Math.atan2(-exit.direction.x, -exit.direction.z);
+  p.root.add(anchor);
+  const plug = makePort(p, "up4", p.id + "-plug", V(0, 0.6, 0), Q(0, 0, 0), p.root);
+  plug.kind = "supplyPlug";
+  if (conn4.body) dressRealisticConnector4(plug);
+  else plug.group.scale.setScalar(SMALL_PROCEDURAL);
+  plug.wires = [];
+  hideCoupling(plug);
+  const end = { id: p.id + "-anchor", kind: "supplyAnchor", part: p, group: anchor, pins: [], colliders: [], fixed: true, wires: [], jacketZ: 0 };
+  anchor.userData.port = end;
+  p.ports.push(end);
+  p.cableGroup = new T.Group();
+  p.root.add(p.cableGroup);
+  updateCable(p);
+  finishPart(p);
+  return p;
+}
 export function makeHarness(type, position, spare = false) {
   const p = addPart(type, spare);
   p.root.position.copy(position);
@@ -441,11 +496,41 @@ export function makeHarness(type, position, spare = false) {
     if (conn12.body) dressRealisticConnector(orange);
     const up4 = makePort(p, "up4", p.id + "-up4", V(1, 0.62, 0), Q(0, 0, Math.PI / 2), p.root);
     if (conn4.body) dressRealisticConnector4(up4);
+    // The supply jack: a small 4-pin socket mounted on the back of that connector, where the supply cable plugs in
+    // (so a replacement harness takes its own jack, and the cable is not part of the harness).
+    const jack = makePort(
+      p,
+      "low4",
+      p.id + "-supply",
+      // beside the connector, facing the back of the table (where the supply cable comes from) once the harness is in place
+      V(-0.6, -0.1, -0.5), // the plug's jacket (jack z = 0.6) starts right behind the connector, beside the harness's own cable
+      Q(0, Math.PI / 2, 0),
+      up4.group,
+    );
+    jack.kind = "supplyJack";
+    jack.fixed = true;
+    jack.wires = [];
+    if (conn4f.body) dressRealisticConnector4F(jack);
+    else jack.group.scale.setScalar(SMALL_PROCEDURAL); // a small socket, as the realistic one
+    hideCoupling(jack);
+    up4.carries = [jack];
   } else {
     const low4 = makePort(p, "low4", p.id + "-low4", V(-1, 0.62, 0), Q(0, Math.PI, Math.PI / 2), p.root);
     if (conn4f.body) dressRealisticConnector4F(low4);
     const circular = makePort(p, "circular", p.id + "-circular", V(1, 0.7, 0), Q(0, 0, Math.PI / 2), p.root);
     if (connC.body) dressRealisticCircular(circular);
+    // Two jacks behind the circular connector, one for each relay bypass cable (not drawn, see makeBypassLead)
+    circular.carries = [-1, 1].map((side, i) => {
+      const jack = makePort(p, "low4", p.id + "-bypass" + i, V(side * 0.05, 0, -0.18), Q(0, Math.PI, 0), circular.group);
+      jack.kind = "bypassJack";
+      jack.fixed = true;
+      jack.wires = [];
+      jack.leadIndex = i;
+      if (conn4f.body) dressRealisticConnector4F(jack);
+      else jack.group.scale.setScalar(SMALL_PROCEDURAL);
+      hideCoupling(jack);
+      return jack;
+    });
   }
   p.cableGroup = new T.Group();
   p.root.add(p.cableGroup);

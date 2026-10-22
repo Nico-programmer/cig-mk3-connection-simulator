@@ -31,3 +31,6 @@ export function isDescendant(m, parent) {
   for (let p = m; p; p = p.parent) if (p === parent) return true;
   return false;
 }
+// A port that never moves by itself: it is carried by its part (the supply jack on the harness's 4-pin connector, the
+// anchor of the supply cable), so when it is mated its partner is the one that moves.
+export const isFixedPort = (p) => !!p.fixed;

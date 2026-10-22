@@ -63,6 +63,7 @@ export function prepareLesson(code, variant = "screen") {
     attach(refUpper.ports[0], good.ports[0]);
     attach(refLower.ports[0], refUpper.ports[1]);
     attach(refLower.ports[1], refEM.ports[0]);
+    refUpper.externalSupply = true; // the reference vehicle has its own supply
     S.circuit.supplyUppers = [upper, refUpper];
     swapParts = {
       suspect,

@@ -28,7 +28,7 @@ const failures=[];let pairs=0;
 for(const code of ['assembly','healthy']){
   app.buildScenario(code);app.meterOn();
   const ports=app.workParts.flatMap(p=>p.ports);
-  for(const port of ports){
+  for(const port of ports.filter(q=>!q.fixed)){ // the supply jack is too small to hold two probe tips at once
     const pins=Object.keys(PINS[port.kind]||{}).map(Number);
     for(let x=0;x<pins.length;x++)for(let y=x+1;y<pins.length;y++){
       free();pairs++;

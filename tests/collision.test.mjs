@@ -20,7 +20,7 @@ const check=(ok,msg)=>{if(!ok)throw new Error(msg);};
 function bodyOf(m){
   for(let o=m;o;o=o.parent){
     if(o.userData.probeIndex!==undefined&&o.parent===app.probeTools[o.userData.probeIndex-1].group.parent)return o;
-    if(o.userData.port&&o.userData.port.group===o)return ['screen','em'].includes(o.userData.port.kind)?o.userData.port.part.root:o;
+    if(o.userData.port&&o.userData.port.group===o&&!o.userData.port.fixed)return ['screen','em'].includes(o.userData.port.kind)?o.userData.port.part.root:o;
     if(o.userData.part&&o.userData.part.root===o)return o;
     if(o.parent===app.scene)return o;
   }
@@ -57,7 +57,7 @@ for(let k=0;k<60;k++)app.moveSelected(em.root.getWorldPosition(app.V()).add(app.
 assert(em.root.position.x>3&&overlaps().length===0,'EM dragged by its housing stops at the lower harness (1.0 ended inside it)');
 app.buildScenario('assembly');
 for(const part of app.parts){
-  for(const sel of [{part,port:null},...part.ports.filter(p=>!['screen','em'].includes(p.kind)).map(port=>({part,port}))]){
+  for(const sel of [{part,port:null},...part.ports.filter(p=>!['screen','em'].includes(p.kind)&&!p.fixed).map(port=>({part,port}))]){
     if(sel.port)app.select(sel.port);else app.selectPart(part);
     for(const axis of ['x','y','z'])for(const dir of [1,-1])for(let k=0;k<6;k++){
       app.rotateSelected(axis,dir);
@@ -93,7 +93,7 @@ let moves=0;
 for(const code of ['assembly','healthy']){
   app.buildScenario(code);
   for(let k=0;k<160;k++){
-    const part=app.parts[Math.floor(rnd()*app.parts.length)],ports=part.ports.filter(p=>!['screen','em'].includes(p.kind));
+    const part=app.parts[Math.floor(rnd()*app.parts.length)],ports=part.ports.filter(p=>!['screen','em'].includes(p.kind)&&!p.fixed);
     const usePort=ports.length&&rnd()<.6,port=usePort?ports[Math.floor(rnd()*ports.length)]:null;
     if(port)app.select(port);else app.selectPart(part);
     if(rnd()<.25)app.rotateSelected(['x','y','z'][Math.floor(rnd()*3)],rnd()<.5?1:-1);

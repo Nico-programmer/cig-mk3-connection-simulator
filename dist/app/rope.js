@@ -39,6 +39,13 @@ const STEP = 1 / 120,
 export function groundAt() {
   return -0.105;
 }
+// Fixed solids added later (the cable ducts), same shape as the trays above: a box with a rotation about y.
+export function registerStaticSolid(center, half, rotationY = 0) {
+  const c = Math.cos(rotationY),
+    n = Math.sin(rotationY),
+    rotation = new T.Matrix3().set(c, 0, n, 0, 1, 0, -n, 0, c);
+  STATIC_SOLIDS.push({ obb: new OBB(center.clone(), half.clone(), rotation), inverse: rotation.clone().transpose() });
+}
 // The two parts trays on the table (scene.js: tray boxes), as solids for the cables.
 const STATIC_SOLIDS = [
   [0, -0.07, -5.45, 10.5, 0.05, 1.55],
@@ -229,7 +236,7 @@ export class Rope {
     box.expandByScalar(this.radius + 0.6);
     const out = [];
     for (const m of S.allColliders) {
-      if (this.ignores(m)) continue;
+      if (this.ignores(m) || m.userData.ropeFree) continue; // ropeFree: an undrawn coupling the cables pass through
       const obb = colliderOf(m),
         r = obb.halfSize.length();
       if (box.distanceToPoint(obb.center) <= r) out.push({ obb, inverse: obb.rotation.clone().transpose() });

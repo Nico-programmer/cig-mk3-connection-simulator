@@ -143,9 +143,12 @@ export class Rope {
   // getEnds(): { a, aDir, b, bDir } world points and the directions the cable leaves them.
   // lengthFor(distance): rest length for a given end-to-end distance.
   // ignores(mesh): solids this rope passes (e.g. the probe it is attached to).
-  // passive: other cables do not avoid this one (it lies over them, they stay as they are).
-  constructor({ count = 64, radius, color, getEnds, lengthFor, maxLength = Infinity, ignores = () => false, floorLayout = false, passive = false }) {
+  // passive: other cables do not avoid this one (it lies over them, they stay as they are). `passive: "harness"` is
+  // skipped only by the harness cables (the bypass leads that end inside the lower harness's jacket); the meter leads and
+  // the other bypass cable still avoid it.
+  constructor({ count = 64, radius, color, getEnds, lengthFor, maxLength = Infinity, ignores = () => false, floorLayout = false, passive = false, harness = false }) {
     this.passive = passive;
+    this.isHarness = harness;
     this.n = count;
     this.floorLayout = floorLayout;
     this.maxLength = maxLength;
@@ -176,6 +179,12 @@ export class Rope {
   }
   wake() {
     this.sleep = 0;
+  }
+  // Wakes the rope only when one of its ends has moved: a refresh of every cable (after any connector moves) must not
+  // make the ones that did not move simulate again for 20 frames.
+  wakeIfMoved() {
+    const ends = this.getEnds();
+    if (!this.lastEnds || ends.a.distanceTo(this.lastEnds.a) > 1e-6 || ends.b.distanceTo(this.lastEnds.b) > 1e-6) this.sleep = 0;
   }
   // Lays the rope along an arc *above* the ends (used at start and after a jump); it then
   // drops into place under gravity, so a fresh layout never starts inside a solid.
@@ -522,7 +531,7 @@ export class Rope {
       };
     let n = 0;
     for (const other of ROPES) {
-      if (other === this || other.passive || !other.box || !overlap(box, other.box, other.radius)) continue;
+      if (other === this || other.passive === true || (other.passive === "harness" && this.isHarness) || !other.box || !overlap(box, other.box, other.radius)) continue;
       for (let j = 1; j < other.n; j++) add(other.pos[j - 1], other.pos[j], other.radius, other), n++;
     }
     for (const piece of STATIC_PIECES)

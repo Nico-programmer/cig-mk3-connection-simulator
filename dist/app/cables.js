@@ -60,6 +60,7 @@ export function updateCable(p) {
     p.rope = new Rope({
       count: p.ropeCount ?? 48,
       passive: !!p.ropePassive,
+      harness: true,
       radius: p.ropeRadius ?? 0.086,
       color: 0x0f161a,
       getEnds: () => {
@@ -74,7 +75,7 @@ export function updateCable(p) {
     p.cableGroup.add(p.rope.mesh);
     p.rope.render();
   }
-  p.rope.wake();
+  p.rope.wakeIfMoved();
 }
 // Called every frame by the animation loop.
 export function updateHarnesses(dt) {

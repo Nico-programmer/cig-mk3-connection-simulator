@@ -139,7 +139,7 @@ function ensureBypassCables() {
         const lead = S.parts.find((q) => q.type === "bypassLead" && q.bypassIndex === (i === 1 ? 0 : 1)),
           e = lead ? jacketEnd(lead.ports[0]) : harnessBranch(i);
         return { a: b.clone(), aDir: V(1, 0, 0), b: e.point, bDir: e.dir };
-      }, (d) => Math.min(20, Math.max(1.5, d * 1.12 + 0.6)), stripe, 20, true); // it ends inside the harness's jacket: it lies over it
+      }, (d) => Math.min(20, Math.max(1.5, d * 1.12 + 0.6)), stripe, 20, "harness"); // it ends inside the harness's jacket: the harness cable lets it be
     } else {
       const anchor = V(-10.7, TAPE_Y, i < 2 ? -0.4 : 0.8);
       rope(() => {
@@ -153,7 +153,7 @@ function ensureBypassCables() {
 export function updateBypassCables() {
   if (!S.bypassPorts.length || !workParts[2]) return;
   ensureBypassCables();
-  for (const r of bypassRopes) r.wake();
+  for (const r of bypassRopes) r.wakeIfMoved();
 }
 // Called every frame by the animation loop.
 export function updateBypassRopes(dt) {

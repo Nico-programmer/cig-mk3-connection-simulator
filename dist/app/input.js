@@ -4,7 +4,7 @@ import { PINS, node } from "../electrical.js";
 import { keyGroup, keyLever, meter } from "./bench.js";
 import { connectSelected, disconnectSelected, turnThread } from "./connection.js";
 import { drawMeter, inspectMeter, setMeterMode, updateMeterControls } from "./meter.js";
-import { moveSelected, rotateSelected, selectedEntity, selectedPorts } from "./movement.js";
+import { connectingPorts, moveSelected, rotateSelected, selectedEntity, selectedPorts } from "./movement.js";
 import { partName, portName } from "./names.js";
 import { probeGroup, probeTools } from "./probe-tools.js";
 import { hoveredProbeContact, moveProbe, probePose, selectProbe } from "./probes.js";
@@ -253,7 +253,7 @@ $("orient").addEventListener("click", (e) => {
   const b = e.target.closest("button");
   if (!b) return;
   if (b.id === "connectAction") {
-    selectedPorts(S.selected).some((p) => p.joint) ? disconnectSelected() : connectSelected();
+    connectingPorts(S.selected).some((p) => p.joint) ? disconnectSelected() : connectSelected();
     return;
   }
   if (b.dataset.axis) rotateSelected(b.dataset.axis, Number(b.dataset.dir));

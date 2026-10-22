@@ -5,7 +5,7 @@ import { hitboxesVisible } from "./hitboxes.js";
 import { releaseDrag } from "./input.js";
 import { learning } from "./learning-mount.js";
 import { drawMeter, updateMeterControls } from "./meter.js";
-import { rotateSelected, selectedPorts } from "./movement.js";
+import { connectingPorts, rotateSelected, selectedPorts } from "./movement.js";
 import { partName, portName } from "./names.js";
 import { staticLabels } from "./scene.js";
 import { $, tr } from "./util.js";
@@ -20,8 +20,7 @@ export function updateSelected() {
     return;
   }
   $("selectionName").textContent = S.selected.port ? portName(S.selected.port) : partName(S.selected.part);
-  const ports = selectedPorts(S.selected),
-    connected = ports.some((p) => p.joint);
+  const connected = connectingPorts(S.selected).some((p) => p.joint);
   orient.querySelector(".axes").style.display = connected ? "none" : "flex";
   orient.querySelector(".thread").classList.toggle("active", false);
   orient.querySelectorAll("[data-axis]").forEach((b) => (b.disabled = connected));

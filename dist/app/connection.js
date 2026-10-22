@@ -4,7 +4,7 @@ import { compatible } from "../electrical.js";
 import { refreshCables, updateCable } from "./cables.js";
 import { collision } from "./colliders.js";
 import { lessonEvents } from "./lessons-bridge.js";
-import { selectedPorts } from "./movement.js";
+import { connectingPorts, selectedPorts } from "./movement.js";
 import { forward, setWorldPosition, setWorldQuaternion, worldPos, worldQ } from "./spatial.js";
 import { updateSelected } from "./ui.js";
 import { Q } from "./util.js";
@@ -115,7 +115,7 @@ export function nearbyPair() {
   if (!S.selected) return null;
   let pair = null,
     closest = 2.4;
-  for (const p of selectedPorts(S.selected))
+  for (const p of connectingPorts(S.selected))
     for (const q of availablePorts()) {
       if (!eligibleMate(p, q)) continue;
       const d = worldPos(p).distanceTo(worldPos(q));
@@ -172,7 +172,7 @@ export function connectSelected() {
 }
 export function disconnectSelected() {
   if (!S.selected) return false;
-  const port = selectedPorts(S.selected).find((p) => p.joint);
+  const port = connectingPorts(S.selected).find((p) => p.joint);
   if (!port) return false;
   const mate = port.mate;
   let p = ["screen", "em"].includes(port.kind) || port.fixed ? mate : port,

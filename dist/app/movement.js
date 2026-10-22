@@ -18,6 +18,13 @@ export function selectedPorts(s) {
   // a connector carries the fixed ports mounted on it (the supply jack): they are part of what moves
   return s.port && !["screen", "em"].includes(s.port.kind) ? [s.port, ...(s.port.carries ?? [])] : s.part.ports;
 }
+// The ports of the selection that connect: a connector carries fixed ports (the jacks of the supply and bypass cables) that
+// only matter when they are the selection themselves; otherwise the connector's own port is the one that connects, so
+// the state of the jacks never decides "Connect" / "Disconnect", nor what can be rotated.
+export function connectingPorts(s) {
+  const ports = selectedPorts(s);
+  return ports.some((p) => !p.fixed) ? ports.filter((p) => !p.fixed) : ports;
+}
 export function moveSelected(desired) {
   if (!S.selected || S.selected.port?.fixed) return;
   const entity = selectedEntity(S.selected),

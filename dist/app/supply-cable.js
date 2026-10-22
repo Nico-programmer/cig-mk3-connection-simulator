@@ -71,7 +71,7 @@ function ensure() {
 export const supplyRope = () => rope;
 // Called after anything moves: wake the cable so it follows.
 export function updateSupplyCable() {
-  if (ensure()) rope.wake();
+  if (ensure()) rope.wakeIfMoved();
 }
 // Called every frame by the animation loop.
 export function updateSupplyRope(dt) {

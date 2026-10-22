@@ -24,7 +24,9 @@ export class Circuit{
  source(){const p=this.powerUpper&&this.supplied(this.powerUpper)?this.powerUpper.ports.find(p=>p.kind==='up4'):null;return p?{pos:this.powerUpper.fault==='F1'?node(this.powerUpper.ports.find(p=>p.kind==='orange'),2):node(p,1),gnd:node(p,2)}:null;}
  sources(){return this.supplyUppers?.length?this.supplyUppers.filter(upper=>this.supplied(upper)).map(upper=>({pos:node(upper.ports.find(p=>p.kind==='up4'),1),gnd:node(upper.ports.find(p=>p.kind==='up4'),2)})):[this.source()].filter(Boolean);}
  // The EM only works with its relay cables on the lower harness: the lower harness it is plugged into (if it has them) must have both bypass cables plugged in.
- relaysReady(em){const j=em.ports[0].joint;const lower=j?(j.a===em.ports[0]?j.b:j.a).part:null;return !lower||lower.ports.filter(p=>p.kind==='bypassJack'&&p.required).every(p=>p.joint?.inserted);}
+ // The relay connectors (blue) must be joined too: each vehicle/relay pair, or the vehicle pair joined together (the bypass).
+ relaysJoined(){const r=this.relayPorts;if(!r||r.length<4)return true;const m=(a,b)=>!!a.joint?.inserted&&a.mate===b;return (m(r[0],r[1])&&m(r[2],r[3]))||m(r[0],r[2]);}
+ relaysReady(em){if(!this.relaysJoined())return false;const j=em.ports[0].joint;const lower=j?(j.a===em.ports[0]?j.b:j.a).part:null;return !lower||lower.ports.filter(p=>p.kind==='bypassJack'&&p.required).every(p=>p.joint?.inserted);}
  voltage(a,b){this.graph();const sources=this.sources();if(!this.key||!sources.length)return 0;const level=x=>sources.some(s=>this.connected(x,s.pos))?12:sources.some(s=>this.connected(x,s.gnd))?0:null;const va=level(a),vb=level(b);return va===null||vb===null?0:va-vb;}
  continuity(a,b){this.graph();return this.connected(a,b);}
  evaluate(){this.graph();const sources=this.sources(),out={screens:{},ems:{}};const powered=p=>{const sig=SIGNALS[p.kind];return !!(this.key&&sources.some(src=>this.connected(node(p,sig.pos),src.pos)&&this.connected(node(p,sig.gnd),src.gnd)));};

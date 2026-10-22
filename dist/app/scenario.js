@@ -106,6 +106,7 @@ export function buildScenario(code = "assembly", segment = "upper") {
   S.circuit.powerUpper = upper;
   S.parts.forEach(updateCable);
   buildBypass();
+  S.circuit.relayPorts = S.bypassPorts;
   refreshColliders();
   S.circuit.evaluate();
   updateSelected();

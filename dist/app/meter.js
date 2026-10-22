@@ -1,6 +1,7 @@
 // Multimeter logic: readings, display, mode selector and the meter control panel.
 import { PINS, SIGNALS, node } from "../electrical.js";
-import { dialNeedle, meter, meterCanvas, meterTexture } from "./bench.js";
+import { meter, meterCanvas, meterTexture } from "./bench.js";
+import { turnDial } from "./model-meter.js";
 import { updatePinGuidance } from "./guidance.js";
 import { releaseDrag } from "./input.js";
 import { learning } from "./learning-mount.js";
@@ -158,7 +159,7 @@ export function setMeterMode(mode) {
   S.measuring = mode !== "off";
   S.probes = [];
   S.meterResult = "—";
-  dialNeedle.rotation.z = mode === "voltage" ? -0.8 : mode === "continuity" ? -1.6 : 0;
+  turnDial(mode);
   if (probeTools.every((p) => p.contact) && S.measuring) placeProbe(0, probeTools[0].contact);
   else {
     S.probes = probeTools.filter((p) => p.contact).map((p) => p.contact);

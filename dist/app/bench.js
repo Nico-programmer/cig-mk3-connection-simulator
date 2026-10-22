@@ -34,7 +34,7 @@ export const meter = new T.Group();
 meter.position.set(6.7, 0.93, 4.75);
 meter.rotation.x = -Math.PI * 0.37;
 scene.add(meter);
-box(meter, 2.35, 3.45, 0.45, 0xc89635);
+box(meter, 2.35, 3.45, 0.45, 0xc89635).userData.main = true; // (model-meter.js resizes its collider)
 box(meter, 2.13, 3.21, 0.06, 0x23333c, 0, 0, 0.26);
 export const meterCanvas = document.createElement("canvas");
 meterCanvas.width = 720;

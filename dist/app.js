@@ -14,10 +14,11 @@ import "./app/loop.js";
 import { loadMk3Model } from "./app/model-mk3.js";
 import { loadEmModel } from "./app/model-em.js";
 import { loadConnectorModel } from "./app/model-connector.js";
+import { loadMeterModel } from "./app/model-meter.js";
 import { buildScenario } from "./app/scenario.js";
 import { animate } from "./app/loop.js";
 
 // The realistic MK3 model (when available) must be ready before the first bench is built.
-await Promise.all([loadMk3Model(), loadEmModel(), loadConnectorModel()]);
+await Promise.all([loadMk3Model(), loadEmModel(), loadConnectorModel(), loadMeterModel()]);
 buildScenario();
 requestAnimationFrame(animate);
